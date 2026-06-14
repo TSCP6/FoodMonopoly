@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b04a6baf182574644b78ce9bf0c91e68
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 4890085278179872738
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 20001078
+  packageName: "\u57FA\u7840\u5929\u7A7A(Simple Sky)- \u5361\u901A\u8D44\u6E90"
+  packageVersion: 1.2.0
+  assetPath: Assets/SimpleSky/Scenes/SimpleSky_DemoSettings.lighting
+  uploadId: 0
