@@ -147,7 +147,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3936029134922931070}
   m_Layer: 0
-  m_Name: Pig Player
+  m_Name: Pig Enemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -605,7 +605,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 53da996747838ef40a00fd124ea5615f, type: 2}
+  - {fileID: 2100000, guid: c01d4748e3872b345837cdb9665e11b6, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

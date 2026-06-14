@@ -8679,18 +8679,6 @@ PrefabInstance:
       value: Pig Player
       objectReference: {fileID: 0}
     - target: {fileID: 3936029134922931070, guid: 16007b323b3ac004093f0b5a787812f4, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3936029134922931070, guid: 16007b323b3ac004093f0b5a787812f4, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3936029134922931070, guid: 16007b323b3ac004093f0b5a787812f4, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3936029134922931070, guid: 16007b323b3ac004093f0b5a787812f4, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2
       objectReference: {fileID: 0}
