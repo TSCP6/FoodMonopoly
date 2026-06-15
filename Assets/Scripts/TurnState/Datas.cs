@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+//数据信息类
+
 [Serializable]
 public class BuildingData //建造信息
 {

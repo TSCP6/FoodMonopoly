@@ -3,56 +3,42 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[Serializable]
-public class OptionalActionContext
-{
-    public PlayerData currentPlayer;
-    public GridData currentGrid;
-    public List<GridData> upgradableGrids = new List<GridData>();
-    public bool canBuild;
-    public bool canUpgrade;
-}
-
-[Serializable]
-public class StateMachineSettings
-{
-    [Range(2, 8)] public int playerCount = 2;
-    [Range(1, 10)] public int levelCount = 2;
-    [Range(1, 100)] public int turnsPerLevel = 20;
-    [Range(10, 9999)] public int initialMoney = 1000;
-    [Range(1, 100)] public int startReward = 200;
-    public bool carryMoneyBetweenLevels = false;
-}
-
+// 回合状态机只负责流程控制，不负责地图生成或 UI。
+// 地图已经由场景里的 36 个 cube 搭好，所以这里直接读取 BoardGridRegistry 的格子。
 public class TurnStateMachine : MonoBehaviour
 {
-    [Header("Settings")]
+    [Header("Board")]
+    [SerializeField] private BoardGridRegistry boardGridRegistry; //地图登记信息
+
+    [Header("Game Settings")]
     [SerializeField] private StateMachineSettings settings = new StateMachineSettings();
-
-    [Header("Runtime")]
     [SerializeField] private List<PlayerData> players = new List<PlayerData>();
-    [SerializeField] private List<GridData> boardGrids = new List<GridData>();
+    [SerializeField] private float moveStepDelay = 0.12f; //移动时间间隔
 
-    [Header("Optional")]
-    [SerializeField] private bool autoPlayAllPlayers = true;
-    [SerializeField] private float moveStepDelay = 0.12f;
+    public TurnState CurrentState { get; private set; } = TurnState.Idle; //状态
+    public int CurrentLevelIndex { get; private set; } //关卡索引
+    public int CurrentTurnInLevel { get; private set; } //当前关卡的回合数
+    public int CurrentPlayerIndex { get; private set; } //当前玩家索引
+    public int LastDiceValue { get; private set; } //上次掷的骰子点数
 
-    public TurnState CurrentState { get; private set; } = TurnState.Idle;
-    public int CurrentLevelIndex { get; private set; }
-    public int CurrentTurnInLevel { get; private set; }
-    public int CurrentPlayerIndex { get; private set; }
-    public int LastDiceValue { get; private set; }
+    public event Action<TurnState> OnStateChanged; //状态改变事件
+    public event Action<int> OnLevelChanged; //关卡改变事件
+    public event Action<PlayerData> OnPlayerChanged; //玩家改变事件
+    public event Action<PlayerData, int> OnMoneyChanged; //金钱改变事件
+    public event Action<PlayerData, GridData> OnGridResolved; //格子结算事件
+    public event Action<OptionalActionContext> OnOptionalActionRequested; //可选行动请求事件
+    public event Action<string> OnMessage; //消息事件
 
-    public event Action<TurnState> OnStateChanged;
-    public event Action<int> OnLevelChanged;
-    public event Action<PlayerData> OnPlayerChanged;
-    public event Action<PlayerData, int> OnMoneyChanged;
-    public event Action<PlayerData, GridData> OnGridResolved;
-    public event Action<OptionalActionContext> OnOptionalActionRequested;
-    public event Action<string> OnMessage;
+    private bool isInitialized; //是否已初始化
+    private bool isBusy; //是否正在执行流程（如移动），防止重复触发
 
-    private bool isInitialized;
-    private bool isBusy;
+    private void Awake()
+    {
+        if (boardGridRegistry == null)
+        {
+            boardGridRegistry = FindObjectOfType<BoardGridRegistry>(); //自动寻找地图登记组件
+        }
+    }
 
     private void Start()
     {
@@ -60,6 +46,8 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.TurnStart);
     }
 
+    // 初始化玩家和场景棋盘。
+    // 不再生成地图，只读取场景里已经摆好的 cube。
     private void InitializeGame()
     {
         if (isInitialized)
@@ -68,16 +56,17 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         CreatePlayersIfNeeded();
-        CreateBoardIfNeeded();
+        RefreshBoardFromScene();
 
         CurrentLevelIndex = 0;
         CurrentTurnInLevel = 0;
         CurrentPlayerIndex = 0;
         isInitialized = true;
 
-        BroadcastMessage("Turn state machine initialized.");
+        LogMessage("Turn state machine initialized.");
     }
 
+    // 如果场景里没放玩家数据，就自动创建最小可运行的玩家列表。
     private void CreatePlayersIfNeeded()
     {
         if (players == null)
@@ -87,6 +76,7 @@ public class TurnStateMachine : MonoBehaviour
 
         if (players.Count > 0)
         {
+            //如果已经有玩家数据了，就只初始化 ID、金钱和位置，名字如果没设置就默认。
             for (int i = 0; i < players.Count; i++)
             {
                 PlayerData player = players[i];
@@ -102,7 +92,8 @@ public class TurnStateMachine : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < settings.playerCount; i++)
+        //默认创建两个玩家：Player 和 Enemy1，初始金钱由设置决定。
+        for (int i = 0; i < 2; i++)
         {
             PlayerData player = new PlayerData();
             player.playerId = i;
@@ -114,58 +105,30 @@ public class TurnStateMachine : MonoBehaviour
         }
     }
 
-    private void CreateBoardIfNeeded()
+    // 从场景里重新读取所有格子。
+    // BoardGridRegistry 会按 GridIndex 排序，所以这里默认你的 36 个 cube 都已经挂好了 BoardGridView。
+    private void RefreshBoardFromScene()
     {
-        if (boardGrids == null)
+        if (boardGridRegistry == null)
         {
-            boardGrids = new List<GridData>();
+            LogMessage("BoardGridRegistry missing.");
+            return;
         }
 
-        if (boardGrids.Count == 0)
+        boardGridRegistry.Refresh();
+
+        for (int i = 0; i < boardGridRegistry.Count; i++)
         {
-            BuildDefaultBoard();
+            BoardGridView view = boardGridRegistry.GetView(i);
+            if (view != null)
+            {
+                view.SyncFromScene();
+            }
         }
     }
 
-    private void BuildDefaultBoard()
-    {
-        boardGrids.Clear();
-
-        List<GridKind> kinds = new List<GridKind>();
-        for (int i = 0; i < 21; i++)
-        {
-            kinds.Add(GridKind.Building);
-        }
-
-        for (int i = 0; i < 15; i++)
-        {
-            kinds.Add(GridKind.Event);
-        }
-
-        ShuffleKinds(kinds);
-
-        for (int i = 0; i < kinds.Count; i++)
-        {
-            GridData Grid = new GridData();
-            Grid.index = i;
-            Grid.kind = kinds[i];
-            Grid.ownerPlayerId = -1;
-            Grid.buildingData = null;
-            boardGrids.Add(Grid);
-        }
-    }
-
-    private void ShuffleKinds(List<GridKind> kinds)
-    {
-        for (int i = 0; i < kinds.Count; i++)
-        {
-            int randomIndex = UnityEngine.Random.Range(i, kinds.Count);
-            GridKind temp = kinds[i];
-            kinds[i] = kinds[randomIndex];
-            kinds[randomIndex] = temp;
-        }
-    }
-
+    // 状态切换统一入口。
+    // 所有回合流程都从这里跳转，避免在别处直接乱改 CurrentState。
     private void EnterState(TurnState nextState)
     {
         CurrentState = nextState;
@@ -198,37 +161,38 @@ public class TurnStateMachine : MonoBehaviour
                 HandleCheckLevelEnd();
                 break;
             case TurnState.GameOver:
-                BroadcastMessage("Game over.");
+                LogMessage("Game over.");
                 break;
         }
     }
 
-    private void HandleTurnStart()
+    private void HandleTurnStart() //每回合开始时检查玩家状态，跳过破产玩家。
     {
         if (isBusy)
         {
             return;
         }
 
-        if (GetCurrentPlayer().IsBankrupt)
+        PlayerData player = GetCurrentPlayer();
+        if (player == null || player.IsBankrupt)
         {
             EnterState(TurnState.NextPlayer);
             return;
         }
 
-        BroadcastMessage("Turn start: " + GetCurrentPlayer().playerName);
-        OnPlayerChanged?.Invoke(GetCurrentPlayer());
+        LogMessage("Turn start: " + player.playerName);
+        OnPlayerChanged?.Invoke(player);
         EnterState(TurnState.RollDice);
     }
 
-    private void HandleRollDice()
+    private void HandleRollDice() //掷骰子，记录点数并进入移动状态。
     {
         LastDiceValue = UnityEngine.Random.Range(1, 7);
-        BroadcastMessage(GetCurrentPlayer().playerName + " rolled " + LastDiceValue);
+        LogMessage(GetCurrentPlayer().playerName + " rolled " + LastDiceValue);
         EnterState(TurnState.Move);
     }
 
-    private void HandleMove()
+    private void HandleMove() //根据骰子点数移动玩家位置。
     {
         if (!isBusy)
         {
@@ -241,16 +205,12 @@ public class TurnStateMachine : MonoBehaviour
         isBusy = true;
 
         PlayerData player = GetCurrentPlayer();
-        for (int i = 0; i < LastDiceValue; i++)
-        {
-            player.position = (player.position + 1) % GetBoardSize();
-            BroadcastMessage(player.playerName + " moved to Grid " + player.position);
+        int boardSize = GetBoardSize();
 
-            if (player.position == 0)
-            {
-                ChangeMoney(player, settings.startReward);
-                BroadcastMessage(player.playerName + " passed start and gained " + settings.startReward);
-            }
+        for (int i = 0; i < LastDiceValue; i++) //每步移动后等待一段时间，模拟动画效果。
+        {
+            player.position = (player.position + 1) % boardSize;
+            LogMessage(player.playerName + " moved to grid " + player.position);
 
             yield return new WaitForSeconds(moveStepDelay);
         }
@@ -259,42 +219,48 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.ResolveGrid);
     }
 
-    private void HandleResolveGrid()
+    private void HandleResolveGrid() //根据玩家停留的格子类型和状态执行结算逻辑。
     {
-        GridData Grid = GetCurrentGrid();
+        BoardGridView view = GetCurrentGridView();
         PlayerData player = GetCurrentPlayer();
 
-        if (Grid.kind == GridKind.Building)
+        if (view == null)
         {
-            BroadcastMessage(player.playerName + " landed on building Grid " + Grid.index);
+            EnterState(TurnState.EndTurn);
+            return;
+        }
 
-            if (Grid.HasBuilding && Grid.ownerPlayerId >= 0 && Grid.ownerPlayerId != player.playerId)
+        GridData grid = view.RuntimeData;
+
+        if (view.IsBuildingGrid)
+        {
+            LogMessage(player.playerName + " landed on building grid " + grid.index);
+
+            //如果格子上有建筑，并且不是玩家自己的，就执行过路费结算。
+            if (grid.HasBuilding && grid.ownerPlayerId >= 0 && grid.ownerPlayerId != player.playerId)
             {
-                ResolvePassFee(player, Grid);
+                ResolvePassFee(player, grid);
             }
-
-            OnGridResolved?.Invoke(player, Grid);
         }
-        else
+        else if (view.IsEventGrid)
         {
-            BroadcastMessage(player.playerName + " landed on event Grid " + Grid.index);
-            OnGridResolved?.Invoke(player, Grid);
-            TriggerEventGrid(Grid, player);
+            LogMessage(player.playerName + " landed on event grid " + grid.index + " tag: " + view.gameObject.tag);
+            ResolveEventGrid(view, player);
         }
 
+        OnGridResolved?.Invoke(player, grid);
         EnterState(TurnState.OptionalAction);
     }
 
-    private void HandleOptionalAction()
+    private void HandleOptionalAction() //玩家在这里可以选择建造、升级或跳过。敌人默认自动决策：先建造，再升级，最后跳过。
     {
         OptionalActionContext context = BuildOptionalActionContext();
         OnOptionalActionRequested?.Invoke(context);
 
         OptionalActionType action = DecideOptionalAction(context);
-
         if (action == OptionalActionType.Build)
         {
-            TryBuildOnCurrentGrid(context.currentPlayer, context.currentGrid);
+            TryBuildOnCurrentGrid(context.currentPlayer, context.currentGridView);
         }
         else if (action == OptionalActionType.Upgrade)
         {
@@ -302,13 +268,13 @@ public class TurnStateMachine : MonoBehaviour
         }
         else
         {
-            BroadcastMessage(context.currentPlayer.playerName + " skipped optional action.");
+            LogMessage(context.currentPlayer.playerName + " skipped optional action.");
         }
 
         EnterState(TurnState.EndTurn);
     }
 
-    private void HandleEndTurn()
+    private void HandleEndTurn() //回合结束时结算收益，增加回合数，并检查是否需要切换玩家或进入下一关。
     {
         PlayerData player = GetCurrentPlayer();
         SettleTurnIncome(player);
@@ -316,14 +282,14 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.CheckLevelEnd);
     }
 
-    private void HandleNextPlayer()
+    private void HandleNextPlayer() //切换到下一个玩家，如果所有玩家都已轮过一轮则进入下一回合。
     {
         CurrentPlayerIndex = (CurrentPlayerIndex + 1) % players.Count;
         OnPlayerChanged?.Invoke(GetCurrentPlayer());
         EnterState(TurnState.TurnStart);
     }
 
-    private void HandleCheckLevelEnd()
+    private void HandleCheckLevelEnd() //检查当前关卡是否完成，如果完成则进入下一关，否则继续下一玩家回合。
     {
         if (IsLevelComplete())
         {
@@ -347,27 +313,45 @@ public class TurnStateMachine : MonoBehaviour
         return CurrentTurnInLevel >= settings.turnsPerLevel;
     }
 
+    // 下一关时只重置回合状态和所有格子的归属，不重新生成地图。
     private void ResetForNextLevel()
     {
         CurrentTurnInLevel = 0;
         CurrentPlayerIndex = 0;
-        BuildDefaultBoard();
 
         for (int i = 0; i < players.Count; i++)
         {
             players[i].position = 0;
             players[i].ownedGridIndexes.Clear();
 
-            if (!settings.carryMoneyBetweenLevels)
+            if (!settings.carryMoneyBetweenLevels) //如果不允许金钱跨关卡，则重置金钱。
             {
                 players[i].money = settings.initialMoney;
             }
         }
 
-        BroadcastMessage("Level " + (CurrentLevelIndex + 1) + " started.");
+        ResetBoardState();
+        LogMessage("Level " + CurrentLevelIndex + " started.");
     }
 
-    private PlayerData GetCurrentPlayer()
+    private void ResetBoardState()
+    {
+        if (boardGridRegistry == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < boardGridRegistry.Count; i++)
+        {
+            BoardGridView view = boardGridRegistry.GetView(i);
+            if (view != null)
+            {
+                view.ResetNeutralState(); //重置为无人状态，保留格子类型（建筑/事件）不变。
+            }
+        }
+    }
+
+    private PlayerData GetCurrentPlayer() //获取当前玩家数据
     {
         if (players == null || players.Count == 0)
         {
@@ -377,48 +361,55 @@ public class TurnStateMachine : MonoBehaviour
         return players[CurrentPlayerIndex % players.Count];
     }
 
-    private GridData GetCurrentGrid()
+    private BoardGridView GetCurrentGridView() //获取当前格子数据
     {
-        int index = GetCurrentPlayer().position;
-        if (boardGrids == null || boardGrids.Count == 0)
+        PlayerData player = GetCurrentPlayer();
+        if (player == null || boardGridRegistry == null)
         {
             return null;
         }
 
-        return boardGrids[index % boardGrids.Count];
+        return boardGridRegistry.GetView(player.position);
     }
 
-    private int GetBoardSize()
+    private int GetBoardSize() //获取格子数量
     {
-        if (boardGrids == null || boardGrids.Count == 0)
+        if (boardGridRegistry != null && boardGridRegistry.Count > 0)
         {
-            return 36;
+            return boardGridRegistry.Count;
         }
 
-        return boardGrids.Count;
+        return 36;
     }
 
+    // 构建可选行动的上下文信息，供决策函数和 UI 使用。
     private OptionalActionContext BuildOptionalActionContext()
     {
+        PlayerData player = GetCurrentPlayer();
+        BoardGridView currentView = GetCurrentGridView();
+
         OptionalActionContext context = new OptionalActionContext();
-        context.currentPlayer = GetCurrentPlayer();
-        context.currentGrid = GetCurrentGrid();
-        context.canBuild = CanBuildOnCurrentGrid(context.currentPlayer, context.currentGrid);
-        context.upgradableGrids = GetUpgradableGrids(context.currentPlayer);
+        context.currentPlayer = player;
+        context.currentGridView = currentView;
+        context.currentGrid = currentView == null ? null : currentView.RuntimeData;
+        context.upgradableGrids = GetUpgradableGrids(player);
+        context.canBuild = CanBuildOnCurrentGrid(currentView);
         context.canUpgrade = context.upgradableGrids.Count > 0;
         return context;
     }
 
+    // 敌人默认自动决策：先建造，再升级，最后跳过。
+    // 玩家后续可以接 UI，把这里替换成按钮输入结果。
     private OptionalActionType DecideOptionalAction(OptionalActionContext context)
     {
-        if (context == null || context.currentPlayer == null || context.currentGrid == null)
+        if (context == null || context.currentPlayer == null || context.currentGridView == null)
         {
             return OptionalActionType.Skip;
         }
 
-        if (context.currentPlayer.playerKind == PlayerKind.Enemy || autoPlayAllPlayers)
+        if (context.currentPlayer.playerKind == PlayerKind.Enemy)
         {
-            if (context.canBuild && CanAffordBuild(context.currentPlayer, context.currentGrid))
+            if (context.canBuild && CanAffordBuild(context.currentPlayer, context.currentGridView))
             {
                 return OptionalActionType.Build;
             }
@@ -431,7 +422,7 @@ public class TurnStateMachine : MonoBehaviour
             return OptionalActionType.Skip;
         }
 
-        if (context.canBuild && CanAffordBuild(context.currentPlayer, context.currentGrid))
+        if (context.canBuild && CanAffordBuild(context.currentPlayer, context.currentGridView))
         {
             return OptionalActionType.Build;
         }
@@ -444,251 +435,228 @@ public class TurnStateMachine : MonoBehaviour
         return OptionalActionType.Skip;
     }
 
-    private bool CanBuildOnCurrentGrid(PlayerData player, GridData Grid)
+    // 只有建筑格才允许建造，而且该格子必须是空的。
+    private bool CanBuildOnCurrentGrid(BoardGridView gridView)
     {
-        if (player == null || Grid == null)
+        if (gridView == null)
         {
             return false;
         }
 
-        return Grid.kind == GridKind.Building && !Grid.HasBuilding;
+        return gridView.IsBuildingGrid && !gridView.RuntimeData.HasBuilding;
     }
 
-    private void ResolvePassFee(PlayerData currentPlayer, GridData Grid)
+    // 建造费用固定，后续如果要支持多种建筑类型，这里改成根据建筑类型返回不同的费用即可。
+    private bool CanAffordBuild(PlayerData player, BoardGridView gridView)
     {
-        PlayerData owner = GetPlayerById(Grid.ownerPlayerId);
-        if (owner == null || Grid.buildingData == null)
-        {
-            return;
-        }
-
-        int fee = GetPassFee(Grid.buildingData);
-        if (fee <= 0)
-        {
-            return;
-        }
-
-        int paidFee = Mathf.Min(currentPlayer.money, fee);
-        ChangeMoney(currentPlayer, -paidFee);
-        ChangeMoney(owner, paidFee);
-
-        BroadcastMessage(currentPlayer.playerName + " paid pass fee " + paidFee + " to " + owner.playerName);
-    }
-
-    private bool CanAffordBuild(PlayerData player, GridData Grid)
-    {
-        if (!CanBuildOnCurrentGrid(player, Grid))
+        if (player == null || gridView == null || !CanBuildOnCurrentGrid(gridView))
         {
             return false;
         }
 
-        return player.money >= GetBuildCost(BuildingType.ChainRestaurant);
+        return player.money >= GridRules.GetBuildCost(BuildingType.ChainRestaurant);
     }
 
-    private bool CanAffordAnyUpgrade(PlayerData player, List<GridData> Grids)
+    // 升级费用根据玩家名下所有可升级建筑中等级最低的那一格来判断。
+    private bool CanAffordAnyUpgrade(PlayerData player, List<GridData> grids)
     {
-        if (player == null || Grids == null)
+        if (player == null || grids == null)
         {
             return false;
         }
 
-        for (int i = 0; i < Grids.Count; i++)
+        for (int i = 0; i < grids.Count; i++)
         {
-            GridData Grid = Grids[i];
-            if (Grid != null && Grid.HasBuilding && Grid.ownerPlayerId == player.playerId)
+            GridData grid = grids[i];
+            if (grid == null || !grid.HasBuilding || grid.ownerPlayerId != player.playerId)
             {
-                int upgradeCost = GetUpgradeCost(Grid.buildingData.level);
-                if (player.money >= upgradeCost)
-                {
-                    return true;
-                }
+                continue;
+            }
+
+            int upgradeCost = GridRules.GetUpgradeCost(grid.buildingData.buildingType, grid.buildingData.level);
+            if (upgradeCost > 0 && player.money >= upgradeCost)
+            {
+                return true;
             }
         }
 
         return false;
     }
 
-    private void TryBuildOnCurrentGrid(PlayerData player, GridData Grid)
+    // 建造固定在当前格子上执行。
+    // 这里默认先建第一种建筑，后续如果要弹 UI 选择建筑类型，只需要把参数改掉。
+    private void TryBuildOnCurrentGrid(PlayerData player, BoardGridView gridView)
     {
-        if (!CanBuildOnCurrentGrid(player, Grid))
+        if (player == null || gridView == null || !CanBuildOnCurrentGrid(gridView))
         {
-            BroadcastMessage("Build failed.");
             return;
         }
 
-        int buildCost = GetBuildCost(BuildingType.ChainRestaurant);
+        int buildCost = GridRules.GetBuildCost(BuildingType.ChainRestaurant);
         if (player.money < buildCost)
         {
-            BroadcastMessage(player.playerName + " has not enough money to build.");
+            LogMessage(player.playerName + " has not enough money to build.");
             return;
         }
 
         ChangeMoney(player, -buildCost);
-        Grid.buildingData = new BuildingData();
-        Grid.buildingData.buildingType = BuildingType.ChainRestaurant;
-        Grid.buildingData.level = 1;
-        Grid.ownerPlayerId = player.playerId;
+        gridView.SetBuildingOwner(player, BuildingType.ChainRestaurant);
 
-        if (!player.ownedGridIndexes.Contains(Grid.index))
+        if (!player.ownedGridIndexes.Contains(gridView.GridIndex))
         {
-            player.ownedGridIndexes.Add(Grid.index);
+            player.ownedGridIndexes.Add(gridView.GridIndex);
         }
 
-        BroadcastMessage(player.playerName + " built a ChainRestaurant at Grid " + Grid.index);
+        LogMessage(player.playerName + " built a ChainRestaurant at grid " + gridView.GridIndex);
     }
 
+    // 升级逻辑是全局选择：从己方全部建筑中找出等级最低、且未满级的那一格进行升级。
     private void TryUpgradeGlobalBuilding(PlayerData player)
     {
-        GridData target = FindLowestLevelUpgradableGrid(player);
+        BoardGridView target = FindLowestLevelUpgradableGrid(player);
         if (target == null)
         {
-            BroadcastMessage("No upgrade target found.");
+            LogMessage("No upgrade target found.");
             return;
         }
 
-        int upgradeCost = GetUpgradeCost(target.buildingData.level);
+        int upgradeCost = GridRules.GetUpgradeCost(target.RuntimeData.buildingData.buildingType, target.RuntimeData.buildingData.level);
         if (player.money < upgradeCost)
         {
-            BroadcastMessage(player.playerName + " has not enough money to upgrade.");
+            LogMessage(player.playerName + " has not enough money to upgrade.");
             return;
         }
 
         ChangeMoney(player, -upgradeCost);
-        target.buildingData.level = Mathf.Min(target.buildingData.level + 1, 3);
-        BroadcastMessage(player.playerName + " upgraded Grid " + target.index + " to level " + target.buildingData.level);
+        target.UpgradeBuilding();
+        LogMessage(player.playerName + " upgraded grid " + target.GridIndex + " to level " + target.RuntimeData.buildingData.level);
     }
 
-    private GridData FindLowestLevelUpgradableGrid(PlayerData player)
+    // 从玩家名下所有可升级的建筑中找出等级最低的那一格，作为升级目标。
+    private BoardGridView FindLowestLevelUpgradableGrid(PlayerData player)
     {
-        GridData bestGrid = null;
-        for (int i = 0; i < boardGrids.Count; i++)
+        if (player == null || boardGridRegistry == null)
         {
-            GridData Grid = boardGrids[i];
-            if (Grid == null || !Grid.HasBuilding)
+            return null;
+        }
+
+        BoardGridView bestGrid = null;
+        for (int i = 0; i < boardGridRegistry.Count; i++)
+        {
+            BoardGridView view = boardGridRegistry.GetView(i);
+            if (view == null)
             {
                 continue;
             }
 
-            if (Grid.ownerPlayerId != player.playerId)
+            GridData grid = view.RuntimeData;
+            if (!grid.HasBuilding || grid.ownerPlayerId != player.playerId || grid.buildingData.IsMaxLevel)
             {
                 continue;
             }
 
-            if (Grid.buildingData.IsMaxLevel)
+            if (bestGrid == null || grid.buildingData.level < bestGrid.RuntimeData.buildingData.level)
             {
-                continue;
-            }
-
-            if (bestGrid == null)
-            {
-                bestGrid = Grid;
-                continue;
-            }
-
-            if (Grid.buildingData.level < bestGrid.buildingData.level)
-            {
-                bestGrid = Grid;
+                bestGrid = view;
             }
         }
 
         return bestGrid;
     }
 
+    // 获取玩家名下所有可升级的建筑格子列表，供 UI 显示和决策使用。
     private List<GridData> GetUpgradableGrids(PlayerData player)
     {
         List<GridData> result = new List<GridData>();
-        for (int i = 0; i < boardGrids.Count; i++)
+        if (player == null || boardGridRegistry == null)
         {
-            GridData Grid = boardGrids[i];
-            if (Grid == null || !Grid.HasBuilding)
+            return result;
+        }
+
+        for (int i = 0; i < boardGridRegistry.Count; i++)
+        {
+            BoardGridView view = boardGridRegistry.GetView(i);
+            if (view == null)
             {
                 continue;
             }
 
-            if (Grid.ownerPlayerId == player.playerId && !Grid.buildingData.IsMaxLevel)
+            GridData grid = view.RuntimeData;
+            if (grid.HasBuilding && grid.ownerPlayerId == player.playerId && !grid.buildingData.IsMaxLevel)
             {
-                result.Add(Grid);
+                result.Add(grid);
             }
         }
 
         return result;
     }
 
-    private void TriggerEventGrid(GridData Grid, PlayerData player)
+    // 事件格不在这里写具体内容，只保留统一入口。
+    // 你已经用 Tag 区分 Attack / Buff / Debuff，后面直接在这里 switch 就行。
+    private void ResolveEventGrid(BoardGridView view, PlayerData player)
     {
-        BroadcastMessage("Event framework placeholder triggered at Grid " + Grid.index + " for " + player.playerName);
+        switch (view.gameObject.tag)
+        {
+            case "Attack":
+                LogMessage(player.playerName + " triggered Attack event on grid " + view.GridIndex);
+                break;
+            case "Buff":
+                LogMessage(player.playerName + " triggered Buff event on grid " + view.GridIndex);
+                break;
+            case "Debuff":
+                LogMessage(player.playerName + " triggered Debuff event on grid " + view.GridIndex);
+                break;
+            default:
+                LogMessage(player.playerName + " triggered an unknown event on grid " + view.GridIndex);
+                break;
+        }
     }
 
+    // 回合结束时结算当前玩家名下所有建筑的回合收益。
     private void SettleTurnIncome(PlayerData player)
     {
-        int income = 0;
-        for (int i = 0; i < boardGrids.Count; i++)
+        if (player == null || boardGridRegistry == null)
         {
-            GridData Grid = boardGrids[i];
-            if (Grid == null || !Grid.HasBuilding)
+            return;
+        }
+
+        int income = 0;
+        for (int i = 0; i < boardGridRegistry.Count; i++)
+        {
+            BoardGridView view = boardGridRegistry.GetView(i);
+            if (view == null || !view.RuntimeData.HasBuilding)
             {
                 continue;
             }
 
-            if (Grid.ownerPlayerId == player.playerId)
+            if (view.RuntimeData.ownerPlayerId == player.playerId)
             {
-                income += GetTurnIncome(Grid.buildingData);
+                income += GridRules.GetTurnIncome(view.RuntimeData.buildingData);
             }
         }
 
         if (income > 0)
         {
             ChangeMoney(player, income);
-            BroadcastMessage(player.playerName + " gained turn income: " + income);
+            LogMessage(player.playerName + " gained turn income: " + income);
         }
     }
 
-    private int GetTurnIncome(BuildingData buildingData)
+    // 处理过路费：当前玩家支付给建筑所有者。
+    private void ResolvePassFee(PlayerData currentPlayer, GridData grid)
     {
-        if (buildingData == null)
+        PlayerData owner = GetPlayerById(grid.ownerPlayerId);
+        if (owner == null || grid.buildingData == null)
         {
-            return 0;
+            return;
         }
 
-        int baseIncome = 20;
-        switch (buildingData.buildingType)
-        {
-            case BuildingType.ChainRestaurant:
-                baseIncome = 15;
-                break;
-            case BuildingType.CrownRestaurant:
-                baseIncome = 25;
-                break;
-            case BuildingType.FineRestaurant:
-                baseIncome = 35;
-                break;
-        }
+        int fee = GridRules.GetPassFee(grid.buildingData);
+        int paidFee = Mathf.Min(currentPlayer.money, fee);
+        ChangeMoney(currentPlayer, -paidFee);
+        ChangeMoney(owner, paidFee);
 
-        return baseIncome * buildingData.level;
-    }
-
-    private int GetPassFee(BuildingData buildingData)
-    {
-        if (buildingData == null)
-        {
-            return 0;
-        }
-
-        int baseFee = 30;
-        switch (buildingData.buildingType)
-        {
-            case BuildingType.ChainRestaurant:
-                baseFee = 20;
-                break;
-            case BuildingType.CrownRestaurant:
-                baseFee = 40;
-                break;
-            case BuildingType.FineRestaurant:
-                baseFee = 60;
-                break;
-        }
-
-        return baseFee * buildingData.level;
+        LogMessage(currentPlayer.playerName + " paid pass fee " + paidFee + " to " + owner.playerName);
     }
 
     private PlayerData GetPlayerById(int playerId)
@@ -715,33 +683,8 @@ public class TurnStateMachine : MonoBehaviour
         OnMoneyChanged?.Invoke(player, player.money);
     }
 
-    private int GetBuildCost(BuildingType type)
-    {
-        switch (type)
-        {
-            case BuildingType.CrownRestaurant:
-                return 250;
-            case BuildingType.FineRestaurant:
-                return 400;
-            default:
-                return 150;
-        }
-    }
-
-    private int GetUpgradeCost(int currentLevel)
-    {
-        switch (currentLevel)
-        {
-            case 1:
-                return 100;
-            case 2:
-                return 180;
-            default:
-                return 0;
-        }
-    }
-
-    private void BroadcastMessage(string message)
+    // 这里只做一个最轻量的消息出口，调试时会在 Console 里看到流程。
+    private void LogMessage(string message)
     {
         Debug.Log("[TurnStateMachine] " + message);
         OnMessage?.Invoke(message);

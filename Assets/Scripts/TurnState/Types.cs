@@ -1,3 +1,5 @@
+//各种类型枚举
+
 public enum GridKind //格子类型
 {
     Building, //建筑格子

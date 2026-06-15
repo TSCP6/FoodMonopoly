@@ -1,3 +1,5 @@
+//回合状态枚举
+
 public enum TurnState
 {
     Idle, //默认状态
