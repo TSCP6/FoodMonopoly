@@ -9677,22 +9677,22 @@ MonoBehaviour:
   diceRoller: {fileID: 0}
   playerMovers: []
   settings:
-    turnsPerLevel: 20
+    turnsPerLevel: 30
     levelCount: 2
-    initialMoney: 10
+    initialMoney: 50
     carryMoneyBetweenLevels: 0
   players:
   - playerId: 0
     playerName: Player
     playerKind: 0
-    money: 10
+    money: 50
     position: 0
     ownedGridIndexes: 
   - playerId: 1
     playerName: Enemy
     playerKind: 1
-    money: 10
-    position: 4
+    money: 50
+    position: 0
     ownedGridIndexes: 
   moveStepDelay: 0.12
 --- !u!4 &2015579823

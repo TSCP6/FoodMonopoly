@@ -39,8 +39,8 @@ public class PlayerData //玩家数据
     public int position; //玩家在地图上的位置（格子索引）
     public List<int> ownedGridIndexes = new List<int>(); //拥有的建筑格子索引列表
 
-    public bool IsBankrupt //判断玩家是否破产
+    public bool IsBankrupt //判断玩家是否破产（只有负数才算破产，0仍可继续）
     {
-        get { return money <= 0; }
+        get { return money < 0; }
     }
 }
