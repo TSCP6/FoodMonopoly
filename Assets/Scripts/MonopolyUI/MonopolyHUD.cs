@@ -32,6 +32,40 @@ public class MonopolyHUD : MonoBehaviour
     private bool subscribed;
 
     public bool IsUpgradeMode => upgradeMode;
+    public TurnStateMachine BoundStateMachine => stateMachine;
+    public BoardGridRegistry BoundBoardRegistry => boardRegistry;
+    public MonopolyHUDReferences References => ui;
+    public PlayerData CurrentPlayer => currentPlayer;
+    public OptionalActionContext LastOptionalContext => lastOptionalContext;
+
+    public void BindTurnStateMachine(TurnStateMachine target)
+    {
+        if (stateMachine == target)
+        {
+            return;
+        }
+
+        Unsubscribe();
+        stateMachine = target;
+        Subscribe();
+        RefreshStats();
+    }
+
+    public void BindBoardRegistry(BoardGridRegistry target)
+    {
+        boardRegistry = target;
+        RefreshStats();
+    }
+
+    public void SetDiceButtonInteractable(bool interactable)
+    {
+        SetButtonInteractable(ui.diceButton, interactable);
+    }
+
+    public void SetUpgradeButtonInteractable(bool interactable)
+    {
+        SetButtonInteractable(ui.upgradeButton, interactable);
+    }
 
     private void Awake()
     {
@@ -267,7 +301,7 @@ public class MonopolyHUD : MonoBehaviour
         else
         {
             SetButtonInteractable(ui.upgradeButton, true);
-            SetButtonInteractable(ui.diceButton, true);
+            SetButtonInteractable(ui.diceButton, state == TurnState.TurnStart);
         }
     }
 
@@ -279,8 +313,49 @@ public class MonopolyHUD : MonoBehaviour
     private void HandleDiceButtonClicked()
     {
         LeaveUpgradeMode();
+
+        ResolveSceneReferences();
+        if (stateMachine == null)
+        {
+            stateMachine = FindSceneObjectIncludingInactive<TurnStateMachine>();
+        }
+
+        if (stateMachine == null)
+        {
+            Debug.LogWarning("[MonopolyHUD] TurnStateMachine not found in loaded scenes.");
+            SetInfo("未找到回合状态机，无法开始当前回合。");
+            return;
+        }
+
+        if (stateMachine.CurrentState != TurnState.TurnStart)
+        {
+            SetInfo("当前还不能掷骰，请等待回合开始。");
+            return;
+        }
+
+        stateMachine.RequestTurnStart();
         OnActionClicked.Invoke(MonopolyUIActionType.RollDiceOrNextTurn);
-        SetInfo("已点击骰子选项\n请在 OnActionClicked 中接入掷骰或进入下一回合逻辑。");
+        SetInfo("已开始当前回合，正在掷骰。");
+    }
+
+    private T FindSceneObjectIncludingInactive<T>() where T : Component
+    {
+        T[] objects = Resources.FindObjectsOfTypeAll<T>();
+        for (int i = 0; i < objects.Length; i++)
+        {
+            T candidate = objects[i];
+            if (candidate == null || candidate.gameObject == null)
+            {
+                continue;
+            }
+
+            if (candidate.gameObject.scene.IsValid())
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private void RefreshAll()

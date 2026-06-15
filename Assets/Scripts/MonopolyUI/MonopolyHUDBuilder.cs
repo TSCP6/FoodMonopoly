@@ -85,6 +85,16 @@ public static class MonopolyHUDBuilder
 
     private static Text CreateText(RectTransform parent, string name, MonopolyUITextLayout textLayout, MonopolyHUDLayoutSettings settings)
     {
+        if (textLayout == null)
+        {
+            textLayout = new MonopolyUITextLayout();
+        }
+
+        if (textLayout.padding == null)
+        {
+            textLayout.padding = new MonopolyUIPadding();
+        }
+
         GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
         textObject.transform.SetParent(parent, false);
 

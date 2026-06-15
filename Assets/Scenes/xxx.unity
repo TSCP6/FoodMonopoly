@@ -5297,6 +5297,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1295135260}
   - component: {fileID: 1295135259}
+  - component: {fileID: 1295135261}
   m_Layer: 0
   m_Name: MonopolyHUD
   m_TagString: Untagged
@@ -5333,7 +5334,7 @@ MonoBehaviour:
     diceButtonText: {fileID: 0}
   autoFindSceneObjects: 1
   createRuntimeUI: 1
-  layoutSettings: {fileID: 0}
+  layoutSettings: {fileID: 11400000, guid: d8222d1d879087549870ee46e910bd7c, type: 2}
   fallbackMoney: 0
   fallbackIncome: 0
   OnActionClicked:
@@ -5356,6 +5357,22 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1295135261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1295135258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0a1fe35a05666345a253b7c3a40bc00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hud: {fileID: 0}
+  turnStateMachine: {fileID: 0}
+  boardRegistry: {fileID: 0}
+  bindOnAwake: 1
 --- !u!1 &1299509235
 GameObject:
   m_ObjectHideFlags: 0

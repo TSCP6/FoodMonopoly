@@ -2,6 +2,31 @@ using System;
 using UnityEngine;
 
 [Serializable]
+public class MonopolyUIPadding
+{
+    public int left;
+    public int right;
+    public int top;
+    public int bottom;
+
+    public MonopolyUIPadding()
+    {
+        left = 18;
+        right = 18;
+        top = 18;
+        bottom = 18;
+    }
+
+    public MonopolyUIPadding(int left, int right, int top, int bottom)
+    {
+        this.left = left;
+        this.right = right;
+        this.top = top;
+        this.bottom = bottom;
+    }
+}
+
+[Serializable]
 public class MonopolyUILayoutRect
 {
     public Vector2 anchorMin;
@@ -30,13 +55,13 @@ public class MonopolyUITextLayout
     public string defaultText;
     public int fontSize;
     public TextAnchor alignment;
-    public RectOffset padding = new RectOffset(18, 18, 18, 18);
+    public MonopolyUIPadding padding = new MonopolyUIPadding();
 
     public MonopolyUITextLayout()
     {
     }
 
-    public MonopolyUITextLayout(string defaultText, int fontSize, TextAnchor alignment, RectOffset padding)
+    public MonopolyUITextLayout(string defaultText, int fontSize, TextAnchor alignment, MonopolyUIPadding padding)
     {
         this.defaultText = defaultText;
         this.fontSize = fontSize;
@@ -70,11 +95,11 @@ public class MonopolyHUDLayoutSettings : ScriptableObject
     public MonopolyUILayoutRect diceButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 55f), new Vector2(285f, 265f));
 
     [Header("Text")]
-    public MonopolyUITextLayout moneyText = new MonopolyUITextLayout("金钱：0", 32, TextAnchor.UpperLeft, new RectOffset(32, 24, 18, 58));
-    public MonopolyUITextLayout incomeText = new MonopolyUITextLayout("每回合收入：0", 32, TextAnchor.UpperLeft, new RectOffset(32, 24, 58, 18));
-    public MonopolyUITextLayout infoText = new MonopolyUITextLayout("信息栏", 31, TextAnchor.UpperLeft, new RectOffset(32, 32, 28, 28));
-    public MonopolyUITextLayout upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new RectOffset(18, 18, 18, 18));
-    public MonopolyUITextLayout diceButtonText = new MonopolyUITextLayout("骰子选项\n点击后进入下一\n回合", 34, TextAnchor.MiddleCenter, new RectOffset(18, 18, 18, 18));
+    public MonopolyUITextLayout moneyText = new MonopolyUITextLayout("金钱：0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 18, 58));
+    public MonopolyUITextLayout incomeText = new MonopolyUITextLayout("每回合收入：0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 58, 18));
+    public MonopolyUITextLayout infoText = new MonopolyUITextLayout("信息栏", 31, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 32, 28, 28));
+    public MonopolyUITextLayout upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
+    public MonopolyUITextLayout diceButtonText = new MonopolyUITextLayout("骰子选项\n点击后进入下一\n回合", 34, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
 
     public static MonopolyHUDLayoutSettings CreateDefaultInstance()
     {
@@ -104,10 +129,10 @@ public class MonopolyHUDLayoutSettings : ScriptableObject
         upgradeButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-350f, 55f), new Vector2(185f, 165f));
         diceButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 55f), new Vector2(285f, 265f));
 
-        moneyText = new MonopolyUITextLayout("金钱：0", 32, TextAnchor.UpperLeft, new RectOffset(32, 24, 18, 58));
-        incomeText = new MonopolyUITextLayout("每回合收入：0", 32, TextAnchor.UpperLeft, new RectOffset(32, 24, 58, 18));
-        infoText = new MonopolyUITextLayout("信息栏", 31, TextAnchor.UpperLeft, new RectOffset(32, 32, 28, 28));
-        upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new RectOffset(18, 18, 18, 18));
-        diceButtonText = new MonopolyUITextLayout("骰子选项\n点击后进入下一\n回合", 34, TextAnchor.MiddleCenter, new RectOffset(18, 18, 18, 18));
+        moneyText = new MonopolyUITextLayout("金钱：0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 18, 58));
+        incomeText = new MonopolyUITextLayout("每回合收入：0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 58, 18));
+        infoText = new MonopolyUITextLayout("信息栏", 31, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 32, 28, 28));
+        upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
+        diceButtonText = new MonopolyUITextLayout("骰子选项\n点击后进入下一\n回合", 34, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
     }
 }
