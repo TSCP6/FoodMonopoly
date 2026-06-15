@@ -190,7 +190,7 @@ public class TurnStateMachine : MonoBehaviour
         }
     }
 
-    private void HandleTurnStart() //每回合开始时检查玩家状态，跳过破产玩家。
+    private void HandleTurnStart() //每回合开始时检查玩家状态，跳过破产玩家。Enemy 自动掷骰，Player 等待按钮。
     {
         if (isBusy)
         {
@@ -212,10 +212,16 @@ public class TurnStateMachine : MonoBehaviour
 
         OnPlayerChanged?.Invoke(player);
         LogMessage(player.playerName + " 's turn.");
+
+        // 敌人自动掷骰，玩家等待 UI 按钮调用 RequestTurnStart()
+        if (player.playerKind == PlayerKind.Enemy)
+        {
+            LogMessage("Turn started (auto): " + player.playerName);
+            EnterState(TurnState.RollDice);
+        }
     }
 
-    // UI 按钮调用这个方法后，当前回合才会真正开始掷骰。
-    // 这样就不会在进入 TurnStart 后自动运行，而是等玩家点击按钮。
+    // UI 按钮调用这个方法后，当前回合才会开始掷骰（仅 Player 使用）。
     public void RequestTurnStart()
     {
         if (CurrentState != TurnState.TurnStart || isBusy)
@@ -227,6 +233,12 @@ public class TurnStateMachine : MonoBehaviour
         if (player == null || player.IsBankrupt)
         {
             EnterState(TurnState.NextPlayer);
+            return;
+        }
+
+        // 只有 Player 才需要通过按钮手动触发
+        if (player.playerKind != PlayerKind.Player)
+        {
             return;
         }
 
@@ -315,6 +327,23 @@ public class TurnStateMachine : MonoBehaviour
                 yield return new WaitForSeconds(moveStepDelay);
             }
         }
+
+        // 移动完成后检查是否与其他玩家重叠，若重叠则向前跳格避免视觉和逻辑冲突。
+        int bumpGuard = 0;
+        while (IsPositionOccupied(player.position, player) && bumpGuard < boardSize)
+        {
+            player.position = (player.position + 1) % boardSize;
+            bumpGuard++;
+
+            BoardGridView bumpedGrid = GetCurrentGridView();
+            if (mover != null && bumpedGrid != null)
+            {
+                yield return StartCoroutine(mover.MoveToGrid(bumpedGrid.transform));
+            }
+
+            LogMessage(player.playerName + " bumped to grid " + player.position + " to avoid overlap");
+        }
+
         LogMessage(player.playerName + " moved to grid " + player.position);
 
         isBusy = false;
@@ -609,6 +638,19 @@ public class TurnStateMachine : MonoBehaviour
         return 36;
     }
 
+    // 检查指定位置是否被其他玩家占据（排除 excludePlayer）。
+    private bool IsPositionOccupied(int pos, PlayerData excludePlayer)
+    {
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i] != excludePlayer && players[i].position == pos)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 构建可选行动的上下文信息，供决策函数和 UI 使用。
     private OptionalActionContext BuildOptionalActionContext()
     {
@@ -832,7 +874,8 @@ public class TurnStateMachine : MonoBehaviour
             LogMessage,
             ChangeMoney,
             GetPlayerMover,
-            ResolvePassFeeOnly);
+            ResolvePassFeeOnly,
+            IsPositionOccupied);
     }
 
     /// <summary>
