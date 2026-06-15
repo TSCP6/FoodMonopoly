@@ -10,6 +10,12 @@ public class TurnStateMachine : MonoBehaviour
     [Header("Board")]
     [SerializeField] private BoardGridRegistry boardGridRegistry; //地图登记信息
 
+    [Header("Dice")]
+    [SerializeField] private DiceRoller diceRoller; //独立骰子脚本
+
+    [Header("Tokens")]
+    [SerializeField] private List<PlayerTokenMover> playerMovers = new List<PlayerTokenMover>();
+
     [Header("Game Settings")]
     [SerializeField] private StateMachineSettings settings = new StateMachineSettings();
     [SerializeField] private List<PlayerData> players = new List<PlayerData>();
@@ -38,6 +44,16 @@ public class TurnStateMachine : MonoBehaviour
         {
             boardGridRegistry = FindObjectOfType<BoardGridRegistry>(); //自动寻找地图登记组件
         }
+
+        if (diceRoller == null)
+        {
+            diceRoller = FindObjectOfType<DiceRoller>(); //自动寻找骰子组件
+        }
+
+        if (playerMovers == null || playerMovers.Count == 0)
+        {
+            playerMovers = new List<PlayerTokenMover>(FindObjectsOfType<PlayerTokenMover>());
+        }
     }
 
     private void Start()
@@ -55,7 +71,6 @@ public class TurnStateMachine : MonoBehaviour
             return;
         }
 
-        CreatePlayersIfNeeded();
         RefreshBoardFromScene();
 
         CurrentLevelIndex = 0;
@@ -64,45 +79,6 @@ public class TurnStateMachine : MonoBehaviour
         isInitialized = true;
 
         LogMessage("Turn state machine initialized.");
-    }
-
-    // 如果场景里没放玩家数据，就自动创建最小可运行的玩家列表。
-    private void CreatePlayersIfNeeded()
-    {
-        if (players == null)
-        {
-            players = new List<PlayerData>();
-        }
-
-        if (players.Count > 0)
-        {
-            //如果已经有玩家数据了，就只初始化 ID、金钱和位置，名字如果没设置就默认。
-            for (int i = 0; i < players.Count; i++)
-            {
-                PlayerData player = players[i];
-                player.playerId = i;
-                player.money = settings.initialMoney;
-                player.position = 0;
-                if (string.IsNullOrEmpty(player.playerName))
-                {
-                    player.playerName = i == 0 ? "Player" : "Enemy" + i;
-                }
-            }
-
-            return;
-        }
-
-        //默认创建两个玩家：Player 和 Enemy1，初始金钱由设置决定。
-        for (int i = 0; i < 2; i++)
-        {
-            PlayerData player = new PlayerData();
-            player.playerId = i;
-            player.playerName = i == 0 ? "Player" : "Enemy" + i;
-            player.playerKind = i == 0 ? PlayerKind.Player : PlayerKind.Enemy;
-            player.money = settings.initialMoney;
-            player.position = 0;
-            players.Add(player);
-        }
     }
 
     // 从场景里重新读取所有格子。
@@ -173,6 +149,12 @@ public class TurnStateMachine : MonoBehaviour
             return;
         }
 
+        if (AllPlayersBankrupt())
+        {
+            EnterState(TurnState.GameOver);
+            return;
+        }
+
         PlayerData player = GetCurrentPlayer();
         if (player == null || player.IsBankrupt)
         {
@@ -180,15 +162,63 @@ public class TurnStateMachine : MonoBehaviour
             return;
         }
 
-        LogMessage("Turn start: " + player.playerName);
         OnPlayerChanged?.Invoke(player);
+        LogMessage(player.playerName + " 's turn.");
+    }
+
+    // UI 按钮调用这个方法后，当前回合才会真正开始掷骰。
+    // 这样就不会在进入 TurnStart 后自动运行，而是等玩家点击按钮。
+    public void RequestTurnStart()
+    {
+        if (CurrentState != TurnState.TurnStart || isBusy)
+        {
+            return;
+        }
+
+        PlayerData player = GetCurrentPlayer();
+        if (player == null || player.IsBankrupt)
+        {
+            EnterState(TurnState.NextPlayer);
+            return;
+        }
+
+        LogMessage("Turn started: " + player.playerName);
         EnterState(TurnState.RollDice);
     }
 
-    private void HandleRollDice() //掷骰子，记录点数并进入移动状态。
+    private void HandleRollDice() //掷骰子，调用独立骰子脚本执行动画并拿到结果。
     {
-        LastDiceValue = UnityEngine.Random.Range(1, 7);
-        LogMessage(GetCurrentPlayer().playerName + " rolled " + LastDiceValue);
+        if (!isBusy)
+        {
+            StartCoroutine(RollDiceRoutine());
+        }
+    }
+
+    private IEnumerator RollDiceRoutine() //掷骰子的协程流程。
+    {
+        isBusy = true;
+
+        PlayerData player = GetCurrentPlayer();
+        if (player == null)
+        {
+            isBusy = false;
+            EnterState(TurnState.EndTurn);
+            yield break;
+        }
+
+        if (diceRoller != null)
+        {
+            yield return StartCoroutine(diceRoller.RollRoutine(value => LastDiceValue = value));
+        }
+        else
+        {
+            LastDiceValue = UnityEngine.Random.Range(1, 7);
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        LogMessage(player.playerName + " rolled " + LastDiceValue);
+
+        isBusy = false;
         EnterState(TurnState.Move);
     }
 
@@ -205,15 +235,25 @@ public class TurnStateMachine : MonoBehaviour
         isBusy = true;
 
         PlayerData player = GetCurrentPlayer();
+        PlayerTokenMover mover = GetPlayerMover(player);
         int boardSize = GetBoardSize();
 
         for (int i = 0; i < LastDiceValue; i++) //每步移动后等待一段时间，模拟动画效果。
         {
             player.position = (player.position + 1) % boardSize;
-            LogMessage(player.playerName + " moved to grid " + player.position);
 
-            yield return new WaitForSeconds(moveStepDelay);
+            BoardGridView currentGrid = GetCurrentGridView();
+            if (mover != null && currentGrid != null)
+            {
+                yield return StartCoroutine(mover.MoveToGrid(currentGrid.transform));
+            }
+
+            if (moveStepDelay > 0f)
+            {
+                yield return new WaitForSeconds(moveStepDelay);
+            }
         }
+        LogMessage(player.playerName + " moved to grid " + player.position);
 
         isBusy = false;
         EnterState(TurnState.ResolveGrid);
@@ -284,8 +324,13 @@ public class TurnStateMachine : MonoBehaviour
 
     private void HandleNextPlayer() //切换到下一个玩家，如果所有玩家都已轮过一轮则进入下一回合。
     {
+        if (AllPlayersBankrupt())
+        {
+            EnterState(TurnState.GameOver);
+            return;
+        }
+
         CurrentPlayerIndex = (CurrentPlayerIndex + 1) % players.Count;
-        OnPlayerChanged?.Invoke(GetCurrentPlayer());
         EnterState(TurnState.TurnStart);
     }
 
@@ -351,6 +396,31 @@ public class TurnStateMachine : MonoBehaviour
         }
     }
 
+    // 获取指定 ID 的玩家数据（公开给 Binder 使用）
+    public PlayerData GetPlayer(int playerId)
+    {
+        if (players == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i].playerId == playerId)
+            {
+                return players[i];
+            }
+        }
+
+        return null;
+    }
+
+    // 获取所有玩家数据（公开给 Binder 做初始化）
+    public List<PlayerData> GetAllPlayers()
+    {
+        return players;
+    }
+
     private PlayerData GetCurrentPlayer() //获取当前玩家数据
     {
         if (players == null || players.Count == 0)
@@ -370,6 +440,25 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         return boardGridRegistry.GetView(player.position);
+    }
+
+    private PlayerTokenMover GetPlayerMover(PlayerData player)
+    {
+        if (player == null || playerMovers == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < playerMovers.Count; i++)
+        {
+            PlayerTokenMover mover = playerMovers[i];
+            if (mover != null && mover.PlayerId == player.playerId)
+            {
+                return mover;
+            }
+        }
+
+        return null;
     }
 
     private int GetBoardSize() //获取格子数量
@@ -661,15 +750,20 @@ public class TurnStateMachine : MonoBehaviour
 
     private PlayerData GetPlayerById(int playerId)
     {
+        return GetPlayer(playerId);
+    }
+
+    private bool AllPlayersBankrupt()
+    {
         for (int i = 0; i < players.Count; i++)
         {
-            if (players[i] != null && players[i].playerId == playerId)
+            if (players[i] != null && !players[i].IsBankrupt)
             {
-                return players[i];
+                return false;
             }
         }
 
-        return null;
+        return true;
     }
 
     private void ChangeMoney(PlayerData player, int delta)
