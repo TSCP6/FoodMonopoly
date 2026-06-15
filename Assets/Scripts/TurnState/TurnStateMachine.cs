@@ -680,24 +680,59 @@ public class TurnStateMachine : MonoBehaviour
         return result;
     }
 
-    // 事件格不在这里写具体内容，只保留统一入口。
-    // 你已经用 Tag 区分 Attack / Buff / Debuff，后面直接在这里 switch 就行。
+    /// <summary>
+    /// 处理玩家踏入事件格子。
+    /// 委托给 EventGridResolver，传入所需的回调和数据。
+    /// </summary>
     private void ResolveEventGrid(BoardGridView view, PlayerData player)
     {
-        switch (view.gameObject.tag)
+        EventGridResolver.Resolve(
+            view,
+            player,
+            players,
+            boardGridRegistry,
+            LogMessage,
+            ChangeMoney,
+            GetPlayerMover,
+            ResolvePassFeeOnly);
+    }
+
+    /// <summary>
+    /// 按 playerId 获取 PlayerTokenMover（用于顺风车移动）。
+    /// </summary>
+    private PlayerTokenMover GetPlayerMover(int playerId)
+    {
+        // 查找场景中所有 PlayerTokenMover，返回匹配 Id 的
+        PlayerTokenMover[] allMovers = FindObjectsOfType<PlayerTokenMover>();
+        for (int i = 0; i < allMovers.Length; i++)
         {
-            case "Attack":
-                LogMessage(player.playerName + " triggered Attack event on grid " + view.GridIndex);
-                break;
-            case "Buff":
-                LogMessage(player.playerName + " triggered Buff event on grid " + view.GridIndex);
-                break;
-            case "Debuff":
-                LogMessage(player.playerName + " triggered Debuff event on grid " + view.GridIndex);
-                break;
-            default:
-                LogMessage(player.playerName + " triggered an unknown event on grid " + view.GridIndex);
-                break;
+            if (allMovers[i] != null && allMovers[i].PlayerId == playerId)
+            {
+                return allMovers[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 仅结算过路费（不触发事件），供事件格顺风车移动后使用。
+    /// 此方法不进入 ResolveGrid 的完整流程，避免事件嵌套。
+    /// </summary>
+    private void ResolvePassFeeOnly(PlayerData player, BoardGridView view)
+    {
+        if (player == null || view == null)
+        {
+            return;
+        }
+
+        GridData grid = view.RuntimeData;
+
+        // 只处理建筑格的过路费，不处理事件格
+        if (view.IsBuildingGrid && grid.HasBuilding &&
+            grid.ownerPlayerId >= 0 && grid.ownerPlayerId != player.playerId)
+        {
+            ResolvePassFee(player, grid);
         }
     }
 
