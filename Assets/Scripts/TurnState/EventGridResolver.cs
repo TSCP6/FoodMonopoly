@@ -20,8 +20,9 @@ public static class EventGridResolver
     /// <param name="boardRegistry">地图格子登记表</param>
     /// <param name="logMessage">输出消息的回调</param>
     /// <param name="changeMoney">修改金钱的回调 (player, delta)</param>
-    /// <param name="getPlayerMover">根据 playerId 获取 PlayerTokenMover 的回调，用于顺风车移动</param>
-    /// <param name="onPostMoveResolve">顺风车移动后结算新格子的回调 (player, gridView) —— 仅处理过路费，不触发新事件</param>
+    /// <param name="getPlayerMover">根据 playerId 获取 PlayerTokenMover 的回调，用于移动 token</param>
+    /// <param name="onPostMoveResolve">移动后结算新格子的回调 (player, gridView) —— 仅处理过路费，不触发新事件</param>
+    /// <param name="isPositionOccupied">检查某位置是否被其他玩家占据的回调 (position, excludePlayer) → bool</param>
     public static void Resolve(
         BoardGridView view,
         PlayerData currentPlayer,
@@ -30,7 +31,8 @@ public static class EventGridResolver
         Action<string> logMessage,
         Action<PlayerData, int> changeMoney,
         Func<int, PlayerTokenMover> getPlayerMover,
-        Action<PlayerData, BoardGridView> onPostMoveResolve)
+        Action<PlayerData, BoardGridView> onPostMoveResolve,
+        Func<int, PlayerData, bool> isPositionOccupied)
     {
         if (view == null || currentPlayer == null)
         {
@@ -42,10 +44,10 @@ public static class EventGridResolver
         switch (tag)
         {
             case "Attack":
-                ResolveAttack(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney);
+                ResolveAttack(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney, getPlayerMover, isPositionOccupied);
                 break;
             case "Buff":
-                ResolveBuff(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney, getPlayerMover, onPostMoveResolve);
+                ResolveBuff(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney, getPlayerMover, onPostMoveResolve, isPositionOccupied);
                 break;
             case "Debuff":
                 ResolveDebuff(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney);
@@ -65,14 +67,16 @@ public static class EventGridResolver
         List<PlayerData> allPlayers,
         BoardGridRegistry boardRegistry,
         Action<string> logMessage,
-        Action<PlayerData, int> changeMoney)
+        Action<PlayerData, int> changeMoney,
+        Func<int, PlayerTokenMover> getPlayerMover,
+        Func<int, PlayerData, bool> isPositionOccupied)
     {
         int roll = Random.Range(0, 3);
 
         switch (roll)
         {
             case 0:
-                BananaPeel(view, currentPlayer, allPlayers, boardRegistry, logMessage);
+                BananaPeel(view, currentPlayer, allPlayers, boardRegistry, logMessage, getPlayerMover, isPositionOccupied);
                 break;
             case 1:
                 TempDinner(view, currentPlayer, allPlayers, changeMoney, logMessage);
@@ -89,7 +93,9 @@ public static class EventGridResolver
         PlayerData currentPlayer,
         List<PlayerData> allPlayers,
         BoardGridRegistry boardRegistry,
-        Action<string> logMessage)
+        Action<string> logMessage,
+        Func<int, PlayerTokenMover> getPlayerMover,
+        Func<int, PlayerData, bool> isPositionOccupied)
     {
         PlayerData target = PickOneOpponent(currentPlayer, allPlayers);
         if (target == null)
@@ -100,9 +106,29 @@ public static class EventGridResolver
         }
 
         int boardSize = boardRegistry != null && boardRegistry.Count > 0 ? boardRegistry.Count : 36;
+        int oldPosition = target.position;
         target.position = (target.position - 1 + boardSize) % boardSize;
         // logMessage(currentPlayer.playerName + " 踩到香蕉皮让 " + target.playerName + " 后退1格，现在位于格子 " + target.position);
         logMessage(currentPlayer.playerName + " used Banana Peel! " + target.playerName + " moves back 1 grid (now at " + target.position + ").");
+
+        // 后退后检查是否与其他人重叠，若重叠则向前跳格。
+        int bumpGuard = 0;
+        bool overlapsBananaCaster = isPositionOccupied != null && isPositionOccupied(target.position, target);
+        while (overlapsBananaCaster && bumpGuard < boardSize)
+        {
+            target.position = (target.position + 1) % boardSize;
+            bumpGuard++;
+            overlapsBananaCaster = isPositionOccupied != null && isPositionOccupied(target.position, target);
+            logMessage(target.playerName + " bumped to grid " + target.position + " to avoid overlap after Banana Peel.");
+        }
+
+        // 同步 token 位置
+        PlayerTokenMover targetMover = getPlayerMover?.Invoke(target.playerId);
+        BoardGridView targetGrid = boardRegistry?.GetView(target.position);
+        if (targetMover != null && targetGrid != null)
+        {
+            targetMover.SnapToGrid(targetGrid.transform);
+        }
     }
 
     /// <summary>临时聚餐：对手 -5 金币，自己 +5 金币。 / Temp dinner: steal 5 gold from opponent.</summary>
@@ -205,14 +231,15 @@ public static class EventGridResolver
         Action<string> logMessage,
         Action<PlayerData, int> changeMoney,
         Func<int, PlayerTokenMover> getPlayerMover,
-        Action<PlayerData, BoardGridView> onPostMoveResolve)
+        Action<PlayerData, BoardGridView> onPostMoveResolve,
+        Func<int, PlayerData, bool> isPositionOccupied)
     {
         int roll = Random.Range(0, 3);
 
         switch (roll)
         {
             case 0:
-                FreeRide(view, currentPlayer, boardRegistry, logMessage, getPlayerMover, onPostMoveResolve);
+                FreeRide(view, currentPlayer, boardRegistry, logMessage, getPlayerMover, onPostMoveResolve, isPositionOccupied);
                 break;
             case 1:
                 AngelFund(view, currentPlayer, changeMoney, logMessage);
@@ -230,7 +257,8 @@ public static class EventGridResolver
         BoardGridRegistry boardRegistry,
         Action<string> logMessage,
         Func<int, PlayerTokenMover> getPlayerMover,
-        Action<PlayerData, BoardGridView> onPostMoveResolve)
+        Action<PlayerData, BoardGridView> onPostMoveResolve,
+        Func<int, PlayerData, bool> isPositionOccupied)
     {
         int boardSize = boardRegistry != null && boardRegistry.Count > 0 ? boardRegistry.Count : 36;
         int oldPosition = currentPlayer.position;
@@ -238,6 +266,17 @@ public static class EventGridResolver
 
         // logMessage(currentPlayer.playerName + " 搭了顺风车，从格子 " + oldPosition + " 走到格子 " + currentPlayer.position);
         logMessage(currentPlayer.playerName + " got a free ride from grid " + oldPosition + " to grid " + currentPlayer.position + ".");
+
+        // 顺风车后检查是否与其他玩家重叠，若重叠则向前跳格。
+        int bumpGuard = 0;
+        bool overlaps = isPositionOccupied != null && isPositionOccupied(currentPlayer.position, currentPlayer);
+        while (overlaps && bumpGuard < boardSize)
+        {
+            currentPlayer.position = (currentPlayer.position + 1) % boardSize;
+            bumpGuard++;
+            overlaps = isPositionOccupied != null && isPositionOccupied(currentPlayer.position, currentPlayer);
+            logMessage(currentPlayer.playerName + " bumped to grid " + currentPlayer.position + " to avoid overlap after Free Ride.");
+        }
 
         // 移动角色（如果有 mover） / Move token if mover exists
         PlayerTokenMover mover = getPlayerMover?.Invoke(currentPlayer.playerId);
