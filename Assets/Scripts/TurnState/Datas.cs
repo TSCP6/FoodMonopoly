@@ -25,7 +25,7 @@ public class GridData //格子数据
 
     public bool HasBuilding //判断格子上是否有建筑
     {
-        get { return buildingData != null; }
+        get { return ownerPlayerId >= 0 && buildingData != null; }
     }
 }
 

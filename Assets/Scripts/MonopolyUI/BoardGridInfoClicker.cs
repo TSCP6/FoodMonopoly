@@ -11,15 +11,23 @@ public class BoardGridInfoClicker : MonoBehaviour
 
     private void Awake()
     {
-        if (targetCamera == null)
+        ResolveReferences();
+    }
+
+    private void OnEnable()
+    {
+        ResolveReferences();
+    }
+
+    public void Bind(MonopolyHUD targetHud, Camera cameraOverride = null)
+    {
+        hud = targetHud;
+        if (cameraOverride != null)
         {
-            targetCamera = Camera.main;
+            targetCamera = cameraOverride;
         }
 
-        if (hud == null)
-        {
-            hud = FindObjectOfType<MonopolyHUD>();
-        }
+        ResolveReferences();
     }
 
     private void Update()
@@ -33,6 +41,8 @@ public class BoardGridInfoClicker : MonoBehaviour
         {
             return;
         }
+
+        ResolveReferences();
 
         if (targetCamera == null || hud == null)
         {
@@ -49,6 +59,19 @@ public class BoardGridInfoClicker : MonoBehaviour
         if (gridView != null)
         {
             hud.HandleBoardGridClicked(gridView);
+        }
+    }
+
+    private void ResolveReferences()
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+
+        if (hud == null)
+        {
+            hud = FindObjectOfType<MonopolyHUD>();
         }
     }
 }

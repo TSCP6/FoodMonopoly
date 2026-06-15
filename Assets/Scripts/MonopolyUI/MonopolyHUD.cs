@@ -16,6 +16,7 @@ public class MonopolyHUD : MonoBehaviour
     [SerializeField] private bool autoFindSceneObjects = true;
     [SerializeField] private bool createRuntimeUI = true;
     [SerializeField] private bool createBoardVisualizer = true;
+    [SerializeField] private bool createBoardClicker = true;
     [SerializeField] private MonopolyHUDLayoutSettings layoutSettings;
 
     [Header("Building")]
@@ -32,6 +33,7 @@ public class MonopolyHUD : MonoBehaviour
 
     private readonly List<string> recentMessages = new List<string>();
     private MonopolyBoardBuildVisualizer boardVisualizer;
+    private BoardGridInfoClicker boardClicker;
     private PlayerData currentPlayer;
     private OptionalActionContext lastOptionalContext;
     private BoardGridView selectedUpgradeGrid;
@@ -55,6 +57,8 @@ public class MonopolyHUD : MonoBehaviour
         }
 
         EnsureBoardVisualizer();
+        EnsureBoardClicker();
+        ConfigureClickThroughUI();
         WireButtons();
         RefreshAll();
     }
@@ -63,6 +67,8 @@ public class MonopolyHUD : MonoBehaviour
     {
         Subscribe();
         EnsureBoardVisualizer();
+        EnsureBoardClicker();
+        ConfigureClickThroughUI();
     }
 
     private void OnDisable()
@@ -113,6 +119,7 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine = target;
         Subscribe();
         EnsureBoardVisualizer();
+        EnsureBoardClicker();
         RefreshStats();
     }
 
@@ -120,6 +127,7 @@ public class MonopolyHUD : MonoBehaviour
     {
         boardRegistry = target;
         EnsureBoardVisualizer();
+        EnsureBoardClicker();
         RefreshStats();
     }
 
@@ -351,6 +359,41 @@ public class MonopolyHUD : MonoBehaviour
         }
 
         boardVisualizer.Bind(stateMachine, boardRegistry, this);
+    }
+
+    private void EnsureBoardClicker()
+    {
+        if (!createBoardClicker)
+        {
+            return;
+        }
+
+        if (boardClicker == null)
+        {
+            boardClicker = FindObjectOfType<BoardGridInfoClicker>();
+        }
+
+        if (boardClicker == null)
+        {
+            boardClicker = gameObject.AddComponent<BoardGridInfoClicker>();
+        }
+
+        boardClicker.Bind(this, Camera.main);
+    }
+
+    private void ConfigureClickThroughUI()
+    {
+        SetRaycastTarget(ui.statsPanel, false);
+        SetRaycastTarget(ui.infoPanel, false);
+        SetRaycastTarget(ui.moneyText, false);
+        SetRaycastTarget(ui.incomeText, false);
+        SetRaycastTarget(ui.infoText, false);
+        SetButtonRaycastTarget(ui.buildButton, true);
+        SetButtonRaycastTarget(ui.upgradeButton, true);
+        SetButtonRaycastTarget(ui.diceButton, true);
+        SetRaycastTarget(ui.buildButtonText, false);
+        SetRaycastTarget(ui.upgradeButtonText, false);
+        SetRaycastTarget(ui.diceButtonText, false);
     }
 
     private void RefreshBoardVisuals()
@@ -919,6 +962,42 @@ public class MonopolyHUD : MonoBehaviour
         if (button != null)
         {
             button.interactable = interactable;
+        }
+    }
+
+    private void SetRaycastTarget(Graphic graphic, bool raycastTarget)
+    {
+        if (graphic != null)
+        {
+            graphic.raycastTarget = raycastTarget;
+        }
+    }
+
+    private void SetRaycastTarget(RectTransform rectTransform, bool raycastTarget)
+    {
+        if (rectTransform == null)
+        {
+            return;
+        }
+
+        Graphic graphic = rectTransform.GetComponent<Graphic>();
+        if (graphic != null)
+        {
+            graphic.raycastTarget = raycastTarget;
+        }
+    }
+
+    private void SetButtonRaycastTarget(Button button, bool raycastTarget)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        Graphic targetGraphic = button.targetGraphic;
+        if (targetGraphic != null)
+        {
+            targetGraphic.raycastTarget = raycastTarget;
         }
     }
 }
