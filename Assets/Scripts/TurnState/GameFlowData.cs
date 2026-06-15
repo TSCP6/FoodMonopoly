@@ -16,8 +16,8 @@ public class OptionalActionContext
 [Serializable]
 public class StateMachineSettings
 {
-    [Range(1, 100)] public int turnsPerLevel = 20;
+    [Range(1, 100)] public int turnsPerLevel = 30;
     public int levelCount = 2;
-    public int initialMoney = 100;
+    public int initialMoney = 50;
     public bool carryMoneyBetweenLevels = false;
 }

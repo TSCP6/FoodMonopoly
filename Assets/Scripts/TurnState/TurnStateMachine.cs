@@ -78,7 +78,55 @@ public class TurnStateMachine : MonoBehaviour
         CurrentPlayerIndex = 0;
         isInitialized = true;
 
+        AssignRandomStartPositions();
+
         LogMessage("Turn state machine initialized.");
+    }
+
+    // 随机分配玩家和敌人的初始位置。
+    // 确保两人不在同一区块——如果后分配到的落点与前者相同，则多跳一格到前方。
+    private void AssignRandomStartPositions()
+    {
+        if (players == null || players.Count == 0)
+        {
+            return;
+        }
+
+        int boardSize = GetBoardSize();
+        if (boardSize <= 1)
+        {
+            return;
+        }
+
+        HashSet<int> occupied = new HashSet<int>();
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            PlayerData player = players[i];
+            if (player == null)
+            {
+                continue;
+            }
+
+            int pos = UnityEngine.Random.Range(0, boardSize);
+            while (occupied.Contains(pos))
+            {
+                pos = (pos + 1) % boardSize;
+            }
+
+            player.position = pos;
+            occupied.Add(pos);
+
+            // 将对应 token 移动到初始位置（如果有 mover 的话）
+            PlayerTokenMover mover = GetPlayerMover(player);
+            BoardGridView startGrid = boardGridRegistry == null ? null : boardGridRegistry.GetView(pos);
+            if (mover != null && startGrid != null)
+            {
+                mover.SnapToGrid(startGrid.transform);
+            }
+
+            LogMessage(player.playerName + " starts at grid " + pos);
+        }
     }
 
     // 从场景里重新读取所有格子。
@@ -334,20 +382,60 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.TurnStart);
     }
 
-    private void HandleCheckLevelEnd() //检查当前关卡是否完成，如果完成则进入下一关，否则继续下一玩家回合。
+    private void HandleCheckLevelEnd() //检查当前关卡是否完成。
     {
         if (IsLevelComplete())
         {
-            CurrentLevelIndex++;
-            OnLevelChanged?.Invoke(CurrentLevelIndex);
+            PlayerData humanPlayer = GetHumanPlayer();
+            PlayerData enemyPlayer = GetEnemyPlayer();
 
-            if (CurrentLevelIndex >= settings.levelCount)
+            if (humanPlayer != null && enemyPlayer != null)
             {
-                EnterState(TurnState.GameOver);
-                return;
-            }
+                if (humanPlayer.money > enemyPlayer.money)
+                {
+                    // 玩家金钱多于敌人，过关进入下一关。
+                    LogMessage("Level " + (CurrentLevelIndex + 1) + " passed! " +
+                               humanPlayer.playerName + " has " + humanPlayer.money + " money vs " +
+                               enemyPlayer.playerName + " has " + enemyPlayer.money + " money.");
 
-            ResetForNextLevel();
+                    CurrentLevelIndex++;
+                    OnLevelChanged?.Invoke(CurrentLevelIndex);
+
+                    if (CurrentLevelIndex >= settings.levelCount)
+                    {
+                        LogMessage("All levels completed!");
+                        EnterState(TurnState.GameOver);
+                        return;
+                    }
+
+                    ResetForNextLevel();
+                    AssignRandomStartPositions();
+                    LogMessage("Level " + (CurrentLevelIndex + 1) + " started.");
+                }
+                else
+                {
+                    // 玩家金钱不高于敌人，重新开始当前关卡。
+                    LogMessage("Level " + (CurrentLevelIndex + 1) + " failed. " +
+                               humanPlayer.playerName + " has " + humanPlayer.money + " money vs " +
+                               enemyPlayer.playerName + " has " + enemyPlayer.money + " money. Restarting...");
+                    ResetCurrentLevel();
+                    AssignRandomStartPositions();
+                }
+            }
+            else
+            {
+                // 找不到玩家或敌人时，按原逻辑处理（保底）。
+                CurrentLevelIndex++;
+                OnLevelChanged?.Invoke(CurrentLevelIndex);
+
+                if (CurrentLevelIndex >= settings.levelCount)
+                {
+                    EnterState(TurnState.GameOver);
+                    return;
+                }
+
+                ResetForNextLevel();
+            }
         }
 
         EnterState(TurnState.NextPlayer);
@@ -358,25 +446,61 @@ public class TurnStateMachine : MonoBehaviour
         return CurrentTurnInLevel >= settings.turnsPerLevel;
     }
 
-    // 下一关时只重置回合状态和所有格子的归属，不重新生成地图。
-    private void ResetForNextLevel()
+    // 获取人类玩家。
+    private PlayerData GetHumanPlayer()
+    {
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i].playerKind == PlayerKind.Player)
+            {
+                return players[i];
+            }
+        }
+        return null;
+    }
+
+    // 获取敌人玩家。
+    private PlayerData GetEnemyPlayer()
+    {
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i].playerKind == PlayerKind.Enemy)
+            {
+                return players[i];
+            }
+        }
+        return null;
+    }
+
+    // 重新开始当前关卡（不通关时不递增关卡索引）。
+    private void ResetCurrentLevel()
     {
         CurrentTurnInLevel = 0;
         CurrentPlayerIndex = 0;
 
         for (int i = 0; i < players.Count; i++)
         {
+            if (players[i] == null)
+            {
+                continue;
+            }
+
             players[i].position = 0;
             players[i].ownedGridIndexes.Clear();
 
-            if (!settings.carryMoneyBetweenLevels) //如果不允许金钱跨关卡，则重置金钱。
+            if (!settings.carryMoneyBetweenLevels)
             {
                 players[i].money = settings.initialMoney;
             }
         }
 
         ResetBoardState();
-        LogMessage("Level " + CurrentLevelIndex + " started.");
+    }
+
+    // 下一关时只重置回合状态和所有格子的归属，不重新生成地图。
+    private void ResetForNextLevel()
+    {
+        ResetCurrentLevel();
     }
 
     private void ResetBoardState()
@@ -680,24 +804,59 @@ public class TurnStateMachine : MonoBehaviour
         return result;
     }
 
-    // 事件格不在这里写具体内容，只保留统一入口。
-    // 你已经用 Tag 区分 Attack / Buff / Debuff，后面直接在这里 switch 就行。
+    /// <summary>
+    /// 处理玩家踏入事件格子。
+    /// 委托给 EventGridResolver，传入所需的回调和数据。
+    /// </summary>
     private void ResolveEventGrid(BoardGridView view, PlayerData player)
     {
-        switch (view.gameObject.tag)
+        EventGridResolver.Resolve(
+            view,
+            player,
+            players,
+            boardGridRegistry,
+            LogMessage,
+            ChangeMoney,
+            GetPlayerMover,
+            ResolvePassFeeOnly);
+    }
+
+    /// <summary>
+    /// 按 playerId 获取 PlayerTokenMover（用于顺风车移动）。
+    /// </summary>
+    private PlayerTokenMover GetPlayerMover(int playerId)
+    {
+        // 查找场景中所有 PlayerTokenMover，返回匹配 Id 的
+        PlayerTokenMover[] allMovers = FindObjectsOfType<PlayerTokenMover>();
+        for (int i = 0; i < allMovers.Length; i++)
         {
-            case "Attack":
-                LogMessage(player.playerName + " triggered Attack event on grid " + view.GridIndex);
-                break;
-            case "Buff":
-                LogMessage(player.playerName + " triggered Buff event on grid " + view.GridIndex);
-                break;
-            case "Debuff":
-                LogMessage(player.playerName + " triggered Debuff event on grid " + view.GridIndex);
-                break;
-            default:
-                LogMessage(player.playerName + " triggered an unknown event on grid " + view.GridIndex);
-                break;
+            if (allMovers[i] != null && allMovers[i].PlayerId == playerId)
+            {
+                return allMovers[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 仅结算过路费（不触发事件），供事件格顺风车移动后使用。
+    /// 此方法不进入 ResolveGrid 的完整流程，避免事件嵌套。
+    /// </summary>
+    private void ResolvePassFeeOnly(PlayerData player, BoardGridView view)
+    {
+        if (player == null || view == null)
+        {
+            return;
+        }
+
+        GridData grid = view.RuntimeData;
+
+        // 只处理建筑格的过路费，不处理事件格
+        if (view.IsBuildingGrid && grid.HasBuilding &&
+            grid.ownerPlayerId >= 0 && grid.ownerPlayerId != player.playerId)
+        {
+            ResolvePassFee(player, grid);
         }
     }
 
