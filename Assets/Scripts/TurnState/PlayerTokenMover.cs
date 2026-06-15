@@ -15,6 +15,12 @@ public class PlayerTokenMover : MonoBehaviour
     [SerializeField] private bool useJumpMove = false;
     [SerializeField] private float jumpHeight = 0.35f;
 
+    [Header("Facing")]
+    [SerializeField] private bool faceMoveDirection = true;
+    [SerializeField] private Transform visualRoot;
+    [SerializeField] private float turnSpeed = 12f;
+    [SerializeField] private float modelYawOffset;
+
     public int PlayerId => playerId;
 
     // 直接把角色放到目标格子中心。
@@ -42,6 +48,7 @@ public class PlayerTokenMover : MonoBehaviour
         Vector3 start = transform.position;
         Vector3 end = gridTransform.position;
         end.y = fixedY;
+        Quaternion targetRotation = GetMoveRotation(start, end);
 
         float elapsed = 0f;
 
@@ -61,10 +68,53 @@ public class PlayerTokenMover : MonoBehaviour
             }
 
             transform.position = position;
+            ApplyMoveRotation(targetRotation, Time.deltaTime);
             yield return null;
         }
 
         transform.position = end;
+        ApplyMoveRotation(targetRotation, moveDuration);
         onCompleted?.Invoke();
+    }
+
+    private Quaternion GetMoveRotation(Vector3 start, Vector3 end)
+    {
+        Transform rotateTarget = GetRotateTarget();
+        if (!faceMoveDirection || rotateTarget == null)
+        {
+            return Quaternion.identity;
+        }
+
+        Vector3 direction = end - start;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            return rotateTarget.rotation;
+        }
+
+        return Quaternion.LookRotation(direction.normalized, Vector3.up) * Quaternion.Euler(0f, modelYawOffset, 0f);
+    }
+
+    private void ApplyMoveRotation(Quaternion targetRotation, float deltaTime)
+    {
+        Transform rotateTarget = GetRotateTarget();
+        if (!faceMoveDirection || rotateTarget == null || targetRotation == Quaternion.identity)
+        {
+            return;
+        }
+
+        if (turnSpeed <= 0f)
+        {
+            rotateTarget.rotation = targetRotation;
+            return;
+        }
+
+        float t = Mathf.Clamp01(deltaTime * turnSpeed);
+        rotateTarget.rotation = Quaternion.Slerp(rotateTarget.rotation, targetRotation, t);
+    }
+
+    private Transform GetRotateTarget()
+    {
+        return visualRoot == null ? transform : visualRoot;
     }
 }
