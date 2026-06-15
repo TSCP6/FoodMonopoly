@@ -20,6 +20,8 @@ public class MonopolyHUDReferences
     public Text infoText;
 
     [Header("Action Buttons")]
+    public Button buildButton;
+    public Text buildButtonText;
     public Button upgradeButton;
     public Text upgradeButtonText;
     public Button diceButton;
@@ -30,6 +32,7 @@ public class MonopolyHUDReferences
         return moneyText != null
             && incomeText != null
             && infoText != null
+            && buildButton != null
             && upgradeButton != null
             && diceButton != null;
     }

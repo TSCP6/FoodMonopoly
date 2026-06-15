@@ -3,6 +3,7 @@ using UnityEngine.Events;
 
 public enum MonopolyUIActionType
 {
+    Build,
     RollDiceOrNextTurn,
     EnterUpgradeMode,
     ConfirmUpgrade

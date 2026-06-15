@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,6 +16,10 @@ public class MonopolyHUD : MonoBehaviour
     [SerializeField] private bool autoFindSceneObjects = true;
     [SerializeField] private bool createRuntimeUI = true;
     [SerializeField] private MonopolyHUDLayoutSettings layoutSettings;
+
+    [Header("Building")]
+    [SerializeField] private BuildingType defaultBuildType = BuildingType.ChainRestaurant;
+    [SerializeField] private bool enableKeyboardActionShortcuts = true;
 
     [Header("Fallback Values")]
     [SerializeField] private int fallbackMoney;
@@ -37,35 +42,6 @@ public class MonopolyHUD : MonoBehaviour
     public MonopolyHUDReferences References => ui;
     public PlayerData CurrentPlayer => currentPlayer;
     public OptionalActionContext LastOptionalContext => lastOptionalContext;
-
-    public void BindTurnStateMachine(TurnStateMachine target)
-    {
-        if (stateMachine == target)
-        {
-            return;
-        }
-
-        Unsubscribe();
-        stateMachine = target;
-        Subscribe();
-        RefreshStats();
-    }
-
-    public void BindBoardRegistry(BoardGridRegistry target)
-    {
-        boardRegistry = target;
-        RefreshStats();
-    }
-
-    public void SetDiceButtonInteractable(bool interactable)
-    {
-        SetButtonInteractable(ui.diceButton, interactable);
-    }
-
-    public void SetUpgradeButtonInteractable(bool interactable)
-    {
-        SetButtonInteractable(ui.upgradeButton, interactable);
-    }
 
     private void Awake()
     {
@@ -90,6 +66,56 @@ public class MonopolyHUD : MonoBehaviour
         Unsubscribe();
     }
 
+    private void Update()
+    {
+        if (!enableKeyboardActionShortcuts || stateMachine == null || stateMachine.CurrentState != TurnState.OptionalAction)
+        {
+            return;
+        }
+
+        if (upgradeMode)
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            TryBuildChainRestaurant();
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            TryBuildCrownRestaurant();
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            TryBuildFineRestaurant();
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha0))
+        {
+            stateMachine.RequestSkipOptionalAction();
+            SetInfo("已跳过可选行动，进入下一回合。");
+        }
+    }
+
+    public void BindTurnStateMachine(TurnStateMachine target)
+    {
+        if (stateMachine == target)
+        {
+            return;
+        }
+
+        Unsubscribe();
+        stateMachine = target;
+        Subscribe();
+        RefreshStats();
+    }
+
+    public void BindBoardRegistry(BoardGridRegistry target)
+    {
+        boardRegistry = target;
+        RefreshStats();
+    }
+
     public void SetMoney(int money)
     {
         fallbackMoney = money;
@@ -110,12 +136,27 @@ public class MonopolyHUD : MonoBehaviour
         }
     }
 
+    public void SetBuildButtonInteractable(bool interactable)
+    {
+        SetButtonInteractable(ui.buildButton, interactable);
+    }
+
+    public void SetDiceButtonInteractable(bool interactable)
+    {
+        SetButtonInteractable(ui.diceButton, interactable);
+    }
+
+    public void SetUpgradeButtonInteractable(bool interactable)
+    {
+        SetButtonInteractable(ui.upgradeButton, interactable);
+    }
+
     public void EnterUpgradeMode()
     {
         upgradeMode = true;
         selectedUpgradeGrid = null;
         OnActionClicked.Invoke(MonopolyUIActionType.EnterUpgradeMode);
-        SetInfo("升级模式\n点击自己的建筑查看升级价格和收益变化。\n再次点击同一建筑确认升级。");
+        SetInfo("升级模式\n点击自己的任意建筑查看升级价格和效果。\n再次点击同一建筑确认升级。");
     }
 
     public void LeaveUpgradeMode()
@@ -140,10 +181,13 @@ public class MonopolyHUD : MonoBehaviour
 
         if (selectedUpgradeGrid == gridView && CanUpgradeGrid(gridView, out string blockedReason))
         {
-            OnActionClicked.Invoke(MonopolyUIActionType.ConfirmUpgrade);
-            OnUpgradeConfirmed.Invoke(gridView);
-            SetInfo("已确认升级请求\n格子：" + gridView.GridIndex + "\n请在 OnUpgradeConfirmed 中接入真正的升级逻辑。");
-            LeaveUpgradeMode();
+            if (TryUpgradeGrid(gridView))
+            {
+                OnActionClicked.Invoke(MonopolyUIActionType.ConfirmUpgrade);
+                OnUpgradeConfirmed.Invoke(gridView);
+                LeaveUpgradeMode();
+            }
+
             return;
         }
 
@@ -159,6 +203,100 @@ public class MonopolyHUD : MonoBehaviour
         }
 
         SetInfo(info);
+    }
+
+    public bool TryBuildChainRestaurant()
+    {
+        return TryBuildOnCurrentGrid(BuildingType.ChainRestaurant);
+    }
+
+    public bool TryBuildCrownRestaurant()
+    {
+        return TryBuildOnCurrentGrid(BuildingType.CrownRestaurant);
+    }
+
+    public bool TryBuildFineRestaurant()
+    {
+        return TryBuildOnCurrentGrid(BuildingType.FineRestaurant);
+    }
+
+    public bool TryBuildOnCurrentGrid(BuildingType buildingType)
+    {
+        ResolveSceneReferences();
+        PlayerData player = GetActionPlayer();
+        BoardGridView gridView = GetActionGridView(player);
+
+        if (!CanBuildGrid(player, gridView, buildingType, out string blockedReason))
+        {
+            SetInfo(blockedReason);
+            return false;
+        }
+
+        int buildCost = GridRules.GetBuildCost(buildingType);
+        if (stateMachine != null && stateMachine.CurrentState == TurnState.OptionalAction)
+        {
+            bool success = stateMachine.RequestBuildOnCurrentGrid(buildingType);
+            if (!success)
+            {
+                SetInfo("建造失败。");
+                return false;
+            }
+
+            currentPlayer = player;
+            RefreshStats();
+            OnActionClicked.Invoke(MonopolyUIActionType.Build);
+            SetInfo("建造成功\n格子：" + gridView.GridIndex + "\n建筑：" + GetBuildingName(buildingType) + "\n花费：" + buildCost);
+            return true;
+        }
+
+        ChangeMoney(player, -buildCost);
+        gridView.SetBuildingOwner(player, buildingType);
+
+        if (!player.ownedGridIndexes.Contains(gridView.GridIndex))
+        {
+            player.ownedGridIndexes.Add(gridView.GridIndex);
+        }
+
+        currentPlayer = player;
+        RefreshStats();
+        OnActionClicked.Invoke(MonopolyUIActionType.Build);
+        SetInfo("建造成功\n格子：" + gridView.GridIndex + "\n建筑：" + GetBuildingName(buildingType) + "\n花费：" + buildCost);
+        return true;
+    }
+
+    public bool TryUpgradeGrid(BoardGridView gridView)
+    {
+        if (!CanUpgradeGrid(gridView, out string blockedReason))
+        {
+            SetInfo(blockedReason);
+            return false;
+        }
+
+        PlayerData player = GetActionPlayer();
+        BuildingData building = gridView.RuntimeData.buildingData;
+        int oldLevel = building.level;
+        int upgradeCost = GridRules.GetUpgradeCost(building.buildingType, building.level);
+
+        if (stateMachine != null && stateMachine.CurrentState == TurnState.OptionalAction)
+        {
+            bool success = stateMachine.RequestUpgradeGrid(gridView);
+            if (!success)
+            {
+                SetInfo("升级失败。");
+                return false;
+            }
+
+            RefreshStats();
+            SetInfo("升级成功\n格子：" + gridView.GridIndex + "\n建筑：" + GetBuildingName(building.buildingType) + "\n等级：" + oldLevel + " -> " + building.level + "\n花费：" + upgradeCost);
+            return true;
+        }
+
+        ChangeMoney(player, -upgradeCost);
+        gridView.UpgradeBuilding();
+        RefreshStats();
+
+        SetInfo("升级成功\n格子：" + gridView.GridIndex + "\n建筑：" + GetBuildingName(building.buildingType) + "\n等级：" + oldLevel + " -> " + building.level + "\n花费：" + upgradeCost);
+        return true;
     }
 
     private void ResolveSceneReferences()
@@ -181,6 +319,12 @@ public class MonopolyHUD : MonoBehaviour
 
     private void WireButtons()
     {
+        if (ui.buildButton != null)
+        {
+            ui.buildButton.onClick.RemoveListener(HandleBuildButtonClicked);
+            ui.buildButton.onClick.AddListener(HandleBuildButtonClicked);
+        }
+
         if (ui.upgradeButton != null)
         {
             ui.upgradeButton.onClick.RemoveListener(EnterUpgradeMode);
@@ -243,12 +387,10 @@ public class MonopolyHUD : MonoBehaviour
 
     private void HandleGridResolved(PlayerData player, GridData grid)
     {
-        if (grid == null)
+        if (grid != null)
         {
-            return;
+            AddMessage(player.playerName + " 到达格子 " + grid.index);
         }
-
-        AddMessage(player.playerName + " 到达格子 " + grid.index);
     }
 
     private void HandleOptionalActionRequested(OptionalActionContext context)
@@ -273,8 +415,7 @@ public class MonopolyHUD : MonoBehaviour
 
         if (context.canBuild)
         {
-            int buildCost = GridRules.GetBuildCost(BuildingType.ChainRestaurant);
-            builder.AppendLine("可建造：价格 " + buildCost + "，每回合收入 " + GridRules.GetTurnIncome(new BuildingData { buildingType = BuildingType.ChainRestaurant, level = 1 }));
+            AppendBuildOptions(builder);
         }
 
         if (context.canUpgrade)
@@ -294,15 +435,16 @@ public class MonopolyHUD : MonoBehaviour
     {
         if (state == TurnState.GameOver)
         {
+            SetButtonInteractable(ui.buildButton, false);
             SetButtonInteractable(ui.upgradeButton, false);
             SetButtonInteractable(ui.diceButton, false);
             SetInfo("游戏结束");
+            return;
         }
-        else
-        {
-            SetButtonInteractable(ui.upgradeButton, true);
-            SetButtonInteractable(ui.diceButton, state == TurnState.TurnStart);
-        }
+
+        SetButtonInteractable(ui.buildButton, state == TurnState.OptionalAction);
+        SetButtonInteractable(ui.upgradeButton, state == TurnState.OptionalAction);
+        SetButtonInteractable(ui.diceButton, state == TurnState.TurnStart || state == TurnState.OptionalAction);
     }
 
     private void HandleMessage(string message)
@@ -310,11 +452,17 @@ public class MonopolyHUD : MonoBehaviour
         AddMessage(message);
     }
 
+    private void HandleBuildButtonClicked()
+    {
+        LeaveUpgradeMode();
+        TryBuildOnCurrentGrid(defaultBuildType);
+    }
+
     private void HandleDiceButtonClicked()
     {
         LeaveUpgradeMode();
-
         ResolveSceneReferences();
+
         if (stateMachine == null)
         {
             stateMachine = FindSceneObjectIncludingInactive<TurnStateMachine>();
@@ -324,6 +472,14 @@ public class MonopolyHUD : MonoBehaviour
         {
             Debug.LogWarning("[MonopolyHUD] TurnStateMachine not found in loaded scenes.");
             SetInfo("未找到回合状态机，无法开始当前回合。");
+            return;
+        }
+
+        if (stateMachine.CurrentState == TurnState.OptionalAction)
+        {
+            stateMachine.RequestSkipOptionalAction();
+            OnActionClicked.Invoke(MonopolyUIActionType.RollDiceOrNextTurn);
+            SetInfo("已跳过可选行动，进入下一回合。");
             return;
         }
 
@@ -344,12 +500,7 @@ public class MonopolyHUD : MonoBehaviour
         for (int i = 0; i < objects.Length; i++)
         {
             T candidate = objects[i];
-            if (candidate == null || candidate.gameObject == null)
-            {
-                continue;
-            }
-
-            if (candidate.gameObject.scene.IsValid())
+            if (candidate != null && candidate.gameObject != null && candidate.gameObject.scene.IsValid())
             {
                 return candidate;
             }
@@ -360,6 +511,11 @@ public class MonopolyHUD : MonoBehaviour
 
     private void RefreshAll()
     {
+        if (ui.buildButtonText != null)
+        {
+            ui.buildButtonText.text = "建造选项\n默认建造\n" + GetBuildingName(defaultBuildType);
+        }
+
         if (ui.upgradeButtonText != null)
         {
             ui.upgradeButtonText.text = "升级选项\n点击后进入\n升级模式";
@@ -371,13 +527,14 @@ public class MonopolyHUD : MonoBehaviour
         }
 
         RefreshStats();
-        SetInfo("信息栏\n例如使用升级功能时，点击相应建筑物/格子，会在这里先显示升级价格和效果。\n再次点击会在这里给个反馈。");
+        SetInfo("信息栏\n落在空建筑格时可以建造。\n点击升级选项后，可全局选择自己的任意建筑升级。");
     }
 
     private void RefreshStats()
     {
-        int money = currentPlayer == null ? fallbackMoney : currentPlayer.money;
-        int income = currentPlayer == null ? fallbackIncome : CalculateCurrentPlayerIncome();
+        PlayerData player = GetActionPlayer();
+        int money = player == null ? fallbackMoney : player.money;
+        int income = player == null ? fallbackIncome : CalculateCurrentPlayerIncome(player);
 
         if (ui.moneyText != null)
         {
@@ -390,9 +547,9 @@ public class MonopolyHUD : MonoBehaviour
         }
     }
 
-    private int CalculateCurrentPlayerIncome()
+    private int CalculateCurrentPlayerIncome(PlayerData player)
     {
-        if (currentPlayer == null || boardRegistry == null)
+        if (player == null || boardRegistry == null)
         {
             return fallbackIncome;
         }
@@ -401,12 +558,7 @@ public class MonopolyHUD : MonoBehaviour
         for (int i = 0; i < boardRegistry.Count; i++)
         {
             BoardGridView view = boardRegistry.GetView(i);
-            if (view == null || view.RuntimeData == null || !view.RuntimeData.HasBuilding)
-            {
-                continue;
-            }
-
-            if (view.RuntimeData.ownerPlayerId == currentPlayer.playerId)
+            if (view != null && view.RuntimeData != null && view.RuntimeData.HasBuilding && view.RuntimeData.ownerPlayerId == player.playerId)
             {
                 income += GridRules.GetTurnIncome(view.RuntimeData.buildingData);
             }
@@ -438,12 +590,7 @@ public class MonopolyHUD : MonoBehaviour
 
         if (!grid.HasBuilding)
         {
-            int buildCost = GridRules.GetBuildCost(BuildingType.ChainRestaurant);
-            BuildingData preview = new BuildingData { buildingType = BuildingType.ChainRestaurant, level = 1 };
-            builder.AppendLine("状态：空地");
-            builder.AppendLine("建造价格：" + buildCost);
-            builder.AppendLine("建造后每回合收入：" + GridRules.GetTurnIncome(preview));
-            builder.AppendLine("建造后过路费：" + GridRules.GetPassFee(preview));
+            AppendBuildOptions(builder);
             return builder.ToString().TrimEnd();
         }
 
@@ -471,17 +618,57 @@ public class MonopolyHUD : MonoBehaviour
         builder.AppendLine("升级后每回合收入：" + GridRules.GetTurnIncome(nextLevel));
         builder.AppendLine("升级后过路费：" + GridRules.GetPassFee(nextLevel));
 
-        if (asUpgradePreview && currentPlayer != null && currentPlayer.money < upgradeCost)
+        PlayerData player = GetActionPlayer();
+        if (asUpgradePreview && player != null && player.money < upgradeCost)
         {
-            builder.AppendLine("资金不足：还差 " + (upgradeCost - currentPlayer.money));
+            builder.AppendLine("资金不足：还差 " + (upgradeCost - player.money));
         }
 
         return builder.ToString().TrimEnd();
     }
 
+    private bool CanBuildGrid(PlayerData player, BoardGridView gridView, BuildingType buildingType, out string blockedReason)
+    {
+        blockedReason = string.Empty;
+
+        if (player == null)
+        {
+            blockedReason = "无法建造：没有当前玩家。";
+            return false;
+        }
+
+        if (gridView == null || gridView.RuntimeData == null)
+        {
+            blockedReason = "无法建造：没有当前落点格子。";
+            return false;
+        }
+
+        if (!gridView.IsBuildingGrid || gridView.RuntimeData.kind != GridKind.Building)
+        {
+            blockedReason = "无法建造：只有建筑格可以建造。";
+            return false;
+        }
+
+        if (gridView.RuntimeData.HasBuilding)
+        {
+            blockedReason = "无法建造：这个格子已经有建筑。";
+            return false;
+        }
+
+        int buildCost = GridRules.GetBuildCost(buildingType);
+        if (player.money < buildCost)
+        {
+            blockedReason = "无法建造：金钱不足，需要 " + buildCost + "。";
+            return false;
+        }
+
+        return true;
+    }
+
     private bool CanUpgradeGrid(BoardGridView gridView, out string blockedReason)
     {
         blockedReason = string.Empty;
+        PlayerData player = GetActionPlayer();
 
         if (gridView == null || gridView.RuntimeData == null)
         {
@@ -502,20 +689,94 @@ public class MonopolyHUD : MonoBehaviour
             return false;
         }
 
-        if (currentPlayer != null && grid.ownerPlayerId != currentPlayer.playerId)
+        if (player != null && grid.ownerPlayerId != player.playerId)
         {
             blockedReason = "无法升级：只能升级当前玩家自己的建筑。";
             return false;
         }
 
         int upgradeCost = GridRules.GetUpgradeCost(grid.buildingData.buildingType, grid.buildingData.level);
-        if (currentPlayer != null && currentPlayer.money < upgradeCost)
+        if (player != null && player.money < upgradeCost)
         {
             blockedReason = "无法升级：金钱不足，需要 " + upgradeCost + "。";
             return false;
         }
 
         return true;
+    }
+
+    private PlayerData GetActionPlayer()
+    {
+        if (lastOptionalContext != null && lastOptionalContext.currentPlayer != null)
+        {
+            return lastOptionalContext.currentPlayer;
+        }
+
+        if (currentPlayer != null)
+        {
+            return currentPlayer;
+        }
+
+        if (stateMachine != null)
+        {
+            List<PlayerData> players = stateMachine.GetAllPlayers();
+            if (players != null && players.Count > 0)
+            {
+                int index = Mathf.Clamp(stateMachine.CurrentPlayerIndex, 0, players.Count - 1);
+                return players[index];
+            }
+        }
+
+        return null;
+    }
+
+    private BoardGridView GetActionGridView(PlayerData player)
+    {
+        if (lastOptionalContext != null && lastOptionalContext.currentGridView != null)
+        {
+            return lastOptionalContext.currentGridView;
+        }
+
+        if (player != null && boardRegistry != null)
+        {
+            return boardRegistry.GetView(player.position);
+        }
+
+        return null;
+    }
+
+    private void ChangeMoney(PlayerData player, int delta)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (stateMachine != null)
+        {
+            MethodInfo changeMoneyMethod = typeof(TurnStateMachine).GetMethod("ChangeMoney", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (changeMoneyMethod != null)
+            {
+                changeMoneyMethod.Invoke(stateMachine, new object[] { player, delta });
+                return;
+            }
+        }
+
+        player.money += delta;
+        RefreshStats();
+    }
+
+    private void AppendBuildOptions(StringBuilder builder)
+    {
+        AppendBuildOption(builder, BuildingType.ChainRestaurant);
+        AppendBuildOption(builder, BuildingType.CrownRestaurant);
+        AppendBuildOption(builder, BuildingType.FineRestaurant);
+    }
+
+    private void AppendBuildOption(StringBuilder builder, BuildingType buildingType)
+    {
+        BuildingData preview = new BuildingData { buildingType = buildingType, level = 1 };
+        builder.AppendLine(GetBuildingName(buildingType) + "：建造 " + GridRules.GetBuildCost(buildingType) + " / 收益 " + GridRules.GetTurnIncome(preview) + " / 过路费 " + GridRules.GetPassFee(preview));
     }
 
     private string GetOwnerLabel(int ownerPlayerId)
@@ -525,9 +786,10 @@ public class MonopolyHUD : MonoBehaviour
             return "无";
         }
 
-        if (currentPlayer != null && ownerPlayerId == currentPlayer.playerId)
+        PlayerData player = GetActionPlayer();
+        if (player != null && ownerPlayerId == player.playerId)
         {
-            return currentPlayer.playerName;
+            return player.playerName;
         }
 
         return "玩家 " + ownerPlayerId;

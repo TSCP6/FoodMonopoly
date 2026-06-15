@@ -78,6 +78,8 @@ public class MonopolyHUDLayoutWindow : EditorWindow
         DrawTextSection("Income Text", "incomeText");
         DrawLayoutSection("Info Panel", "infoPanel");
         DrawTextSection("Info Text", "infoText");
+        DrawLayoutSection("Build Button", "buildButton");
+        DrawTextSection("Build Button Text", "buildButtonText");
         DrawLayoutSection("Upgrade Button", "upgradeButton");
         DrawTextSection("Upgrade Button Text", "upgradeButtonText");
         DrawLayoutSection("Dice Button", "diceButton");

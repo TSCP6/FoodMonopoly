@@ -38,6 +38,9 @@ public static class MonopolyHUDBuilder
         references.infoPanel = CreatePanel(root.transform, "Info Panel", settings.infoPanel, settings.panelColor, settings);
         references.infoText = CreateText(references.infoPanel, "Info Text", settings.infoText, settings);
 
+        references.buildButton = CreateButton(root.transform, "Build Button", settings.buildButton, settings.buildButtonText, settings, out Text buildText);
+        references.buildButtonText = buildText;
+
         references.upgradeButton = CreateButton(root.transform, "Upgrade Button", settings.upgradeButton, settings.upgradeButtonText, settings, out Text upgradeText);
         references.upgradeButtonText = upgradeText;
 

@@ -345,6 +345,12 @@ public class TurnStateMachine : MonoBehaviour
         OptionalActionContext context = BuildOptionalActionContext();
         OnOptionalActionRequested?.Invoke(context);
 
+        if (context != null && context.currentPlayer != null && context.currentPlayer.playerKind == PlayerKind.Player)
+        {
+            LogMessage(context.currentPlayer.playerName + " is waiting for optional action.");
+            return;
+        }
+
         OptionalActionType action = DecideOptionalAction(context);
         if (action == OptionalActionType.Build)
         {
@@ -357,6 +363,66 @@ public class TurnStateMachine : MonoBehaviour
         else
         {
             LogMessage(context.currentPlayer.playerName + " skipped optional action.");
+        }
+
+        EnterState(TurnState.EndTurn);
+    }
+
+    public bool RequestBuildOnCurrentGrid(BuildingType buildingType)
+    {
+        if (CurrentState != TurnState.OptionalAction || isBusy)
+        {
+            return false;
+        }
+
+        OptionalActionContext context = BuildOptionalActionContext();
+        if (context == null || context.currentPlayer == null || context.currentPlayer.playerKind != PlayerKind.Player)
+        {
+            return false;
+        }
+
+        bool success = TryBuildOnCurrentGrid(context.currentPlayer, context.currentGridView, buildingType);
+        if (success)
+        {
+            EnterState(TurnState.EndTurn);
+        }
+
+        return success;
+    }
+
+    public bool RequestUpgradeGrid(BoardGridView targetGrid)
+    {
+        if (CurrentState != TurnState.OptionalAction || isBusy)
+        {
+            return false;
+        }
+
+        PlayerData player = GetCurrentPlayer();
+        if (player == null || player.playerKind != PlayerKind.Player || targetGrid == null)
+        {
+            return false;
+        }
+
+        bool success = TryUpgradeGrid(player, targetGrid);
+        if (success)
+        {
+            EnterState(TurnState.EndTurn);
+        }
+
+        return success;
+    }
+
+    public void RequestSkipOptionalAction()
+    {
+        if (CurrentState != TurnState.OptionalAction || isBusy)
+        {
+            return;
+        }
+
+        PlayerData player = GetCurrentPlayer();
+        if (player != null)
+        {
+            LogMessage(player.playerName + " skipped optional action.");
         }
 
         EnterState(TurnState.EndTurn);
@@ -698,51 +764,63 @@ public class TurnStateMachine : MonoBehaviour
 
     // 建造固定在当前格子上执行。
     // 这里默认先建第一种建筑，后续如果要弹 UI 选择建筑类型，只需要把参数改掉。
-    private void TryBuildOnCurrentGrid(PlayerData player, BoardGridView gridView)
+    private bool TryBuildOnCurrentGrid(PlayerData player, BoardGridView gridView)
+    {
+        return TryBuildOnCurrentGrid(player, gridView, BuildingType.ChainRestaurant);
+    }
+
+    private bool TryBuildOnCurrentGrid(PlayerData player, BoardGridView gridView, BuildingType buildingType)
     {
         if (player == null || gridView == null || !CanBuildOnCurrentGrid(gridView))
         {
-            return;
+            return false;
         }
 
-        int buildCost = GridRules.GetBuildCost(BuildingType.ChainRestaurant);
+        int buildCost = GridRules.GetBuildCost(buildingType);
         if (player.money < buildCost)
         {
             LogMessage(player.playerName + " has not enough money to build.");
-            return;
+            return false;
         }
 
         ChangeMoney(player, -buildCost);
-        gridView.SetBuildingOwner(player, BuildingType.ChainRestaurant);
+        gridView.SetBuildingOwner(player, buildingType);
 
         if (!player.ownedGridIndexes.Contains(gridView.GridIndex))
         {
             player.ownedGridIndexes.Add(gridView.GridIndex);
         }
 
-        LogMessage(player.playerName + " built a ChainRestaurant at grid " + gridView.GridIndex);
+        LogMessage(player.playerName + " built a " + buildingType + " at grid " + gridView.GridIndex);
+        return true;
     }
 
     // 升级逻辑是全局选择：从己方全部建筑中找出等级最低、且未满级的那一格进行升级。
-    private void TryUpgradeGlobalBuilding(PlayerData player)
+    private bool TryUpgradeGlobalBuilding(PlayerData player)
     {
         BoardGridView target = FindLowestLevelUpgradableGrid(player);
+        return TryUpgradeGrid(player, target);
+    }
+
+    private bool TryUpgradeGrid(PlayerData player, BoardGridView target)
+    {
         if (target == null)
         {
             LogMessage("No upgrade target found.");
-            return;
+            return false;
         }
 
         int upgradeCost = GridRules.GetUpgradeCost(target.RuntimeData.buildingData.buildingType, target.RuntimeData.buildingData.level);
         if (player.money < upgradeCost)
         {
             LogMessage(player.playerName + " has not enough money to upgrade.");
-            return;
+            return false;
         }
 
         ChangeMoney(player, -upgradeCost);
         target.UpgradeBuilding();
         LogMessage(player.playerName + " upgraded grid " + target.GridIndex + " to level " + target.RuntimeData.buildingData.level);
+        return true;
     }
 
     // 从玩家名下所有可升级的建筑中找出等级最低的那一格，作为升级目标。
