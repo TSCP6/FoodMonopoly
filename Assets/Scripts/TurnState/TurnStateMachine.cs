@@ -254,6 +254,13 @@ public class TurnStateMachine : MonoBehaviour
             yield break;
         }
 
+        // 播放掷骰子音效
+        AudioManager am = AudioManager.Instance;
+        if (am != null)
+        {
+            am.PlayDiceRollSfx();
+        }
+
         if (diceRoller != null)
         {
             yield return StartCoroutine(diceRoller.RollRoutine(value => LastDiceValue = value));
@@ -293,6 +300,13 @@ public class TurnStateMachine : MonoBehaviour
             BoardGridView currentGrid = GetCurrentGridView();
             if (mover != null && currentGrid != null)
             {
+                // 播放移动音效
+                AudioManager am = AudioManager.Instance;
+                if (am != null)
+                {
+                    am.PlayMoveSfx();
+                }
+
                 yield return StartCoroutine(mover.MoveToGrid(currentGrid.transform));
             }
 
@@ -933,6 +947,17 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         player.money += delta;
+
+        // 获得金钱时播放金币音效（delta > 0 表示收入）
+        if (delta > 0)
+        {
+            AudioManager am = AudioManager.Instance;
+            if (am != null)
+            {
+                am.PlayCoinGainSfx();
+            }
+        }
+
         OnMoneyChanged?.Invoke(player, player.money);
     }
 
