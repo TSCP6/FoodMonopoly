@@ -62,6 +62,37 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.TurnStart);
     }
 
+    private void Update()
+    {
+        if (CurrentState != TurnState.OptionalAction || isBusy)
+        {
+            return;
+        }
+
+        PlayerData player = GetCurrentPlayer();
+        if (player == null || player.playerKind != PlayerKind.Player)
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            RequestBuildOnCurrentGrid(BuildingType.ChainRestaurant);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            RequestBuildOnCurrentGrid(BuildingType.CrownRestaurant);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            RequestBuildOnCurrentGrid(BuildingType.FineRestaurant);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha0))
+        {
+            RequestSkipOptionalAction();
+        }
+    }
+
     // 初始化玩家和场景棋盘。
     // 不再生成地图，只读取场景里已经摆好的 cube。
     private void InitializeGame()
@@ -390,6 +421,13 @@ public class TurnStateMachine : MonoBehaviour
 
         if (context != null && context.currentPlayer != null && context.currentPlayer.playerKind == PlayerKind.Player)
         {
+            if (!HasPlayableHumanOptionalAction(context))
+            {
+                LogMessage(context.currentPlayer.playerName + " has no optional action and skipped.");
+                EnterState(TurnState.EndTurn);
+                return;
+            }
+
             LogMessage(context.currentPlayer.playerName + " is waiting for optional action.");
             return;
         }
@@ -768,6 +806,26 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         return OptionalActionType.Skip;
+    }
+
+    private bool HasPlayableHumanOptionalAction(OptionalActionContext context)
+    {
+        if (context == null || context.currentPlayer == null)
+        {
+            return false;
+        }
+
+        if (context.canBuild && CanAffordBuild(context.currentPlayer, context.currentGridView))
+        {
+            return true;
+        }
+
+        if (context.canUpgrade && CanAffordAnyUpgrade(context.currentPlayer, context.upgradableGrids))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     // 只有建筑格才允许建造，而且该格子必须是空的。
