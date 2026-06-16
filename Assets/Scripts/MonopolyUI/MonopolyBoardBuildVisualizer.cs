@@ -378,15 +378,9 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         visual.markerRenderer.sharedMaterial = ownedByHuman ? playerMaterial : enemyMaterial;
         ApplyBuildingPrefab(visual, grid.buildingData);
 
-        int income = GridRules.GetTurnIncome(grid.buildingData);
-        int passFee = GridRules.GetPassFee(grid.buildingData);
-        int upgradeCost = grid.buildingData.IsMaxLevel ? 0 : GridRules.GetUpgradeCost(grid.buildingData.buildingType, grid.buildingData.level);
-
-        string ownerText = ownedByHuman ? "玩家" : "敌人";
-        string upgradeText = grid.buildingData.IsMaxLevel ? "满级" : "升" + upgradeCost;
+        string ownerText = ownedByHuman ? "\u73A9\u5BB6" : "\u654C\u4EBA";
         visual.label.text = ShortBuildingName(grid.buildingData.buildingType) + " L" + grid.buildingData.level
-            + "\n" + ownerText + " 收" + income + " 路" + passFee
-            + "\n" + upgradeText;
+            + "\n" + ownerText;
     }
 
     private void ApplyBuildingPrefab(GridVisual visual, BuildingData buildingData)

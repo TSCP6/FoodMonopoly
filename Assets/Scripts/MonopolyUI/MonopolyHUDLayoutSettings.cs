@@ -70,6 +70,21 @@ public class MonopolyUITextLayout
     }
 }
 
+[Serializable]
+public class MonopolyUIImageLayout
+{
+    public MonopolyUIPadding padding = new MonopolyUIPadding();
+
+    public MonopolyUIImageLayout()
+    {
+    }
+
+    public MonopolyUIImageLayout(MonopolyUIPadding padding)
+    {
+        this.padding = padding;
+    }
+}
+
 [CreateAssetMenu(menuName = "Food Monopoly/UI/HUD Layout Settings", fileName = "MonopolyHUDLayoutSettings")]
 public class MonopolyHUDLayoutSettings : ScriptableObject
 {
@@ -88,21 +103,30 @@ public class MonopolyHUDLayoutSettings : ScriptableObject
     public Color outlineColor = Color.black;
     public Vector2 outlineDistance = new Vector2(4f, -4f);
 
+    [Header("Sprites")]
+    public Sprite advanceButtonSprite;
+    public Sprite upgradeButtonSprite;
+    public Sprite moneyIconSprite;
+
     [Header("Panels")]
-    public MonopolyUILayoutRect statsPanel = new MonopolyUILayoutRect(new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -36f), new Vector2(470f, 156f));
+    public MonopolyUILayoutRect statsPanel = new MonopolyUILayoutRect(new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -36f), new Vector2(610f, 240f));
     public MonopolyUILayoutRect infoPanel = new MonopolyUILayoutRect(new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 48f), new Vector2(770f, 380f));
     public MonopolyUILayoutRect buildButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-555f, 55f), new Vector2(185f, 165f));
     public MonopolyUILayoutRect upgradeButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-350f, 55f), new Vector2(185f, 165f));
     public MonopolyUILayoutRect diceButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 55f), new Vector2(285f, 265f));
 
     [Header("Text")]
-    public MonopolyUITextLayout moneyText = new MonopolyUITextLayout("\u91D1\u94B1\uFF1A0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 18, 98));
-    public MonopolyUITextLayout turnText = new MonopolyUITextLayout("\u56DE\u5408\uFF1A0/0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 58, 58));
-    public MonopolyUITextLayout incomeText = new MonopolyUITextLayout("\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 98, 18));
+    public MonopolyUITextLayout moneyText = new MonopolyUITextLayout("\u91D1\u94B1\uFF1A0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(92, 24, 16, 190));
+    public MonopolyUITextLayout turnText = new MonopolyUITextLayout("\u56DE\u5408\uFF1A0/0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 54, 152));
+    public MonopolyUITextLayout incomeText = new MonopolyUITextLayout("\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 92, 114));
+    public MonopolyUITextLayout victoryInfoText = new MonopolyUITextLayout("\u83B7\u80DC\u4FE1\u606F\uFF1A\u9650\u5B9A\u56DE\u5408\u7ED3\u675F\u524D\u91D1\u5E01\u6570\u8D85\u8FC7\u654C\u4EBA\n\u654C\u4EBA\u91D1\u5E01\u6570\uFF1A0", 24, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 132, 16));
     public MonopolyUITextLayout infoText = new MonopolyUITextLayout("信息栏", 24, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 32, 28, 28));
     public MonopolyUITextLayout buildButtonText = new MonopolyUITextLayout("建造选项\n默认建造\n连锁餐厅", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
     public MonopolyUITextLayout upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
     public MonopolyUITextLayout diceButtonText = new MonopolyUITextLayout("骰子选项\n点击后进入下一\n回合", 34, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
+    public MonopolyUIImageLayout moneyIcon = new MonopolyUIImageLayout(new MonopolyUIPadding(28, 530, 18, 178));
+    public MonopolyUIImageLayout upgradeButtonIcon = new MonopolyUIImageLayout(new MonopolyUIPadding(18, 18, 18, 18));
+    public MonopolyUIImageLayout diceButtonIcon = new MonopolyUIImageLayout(new MonopolyUIPadding(18, 18, 18, 18));
 
     public static MonopolyHUDLayoutSettings CreateDefaultInstance()
     {
@@ -127,15 +151,20 @@ public class MonopolyHUDLayoutSettings : ScriptableObject
         outlineColor = Color.black;
         outlineDistance = new Vector2(4f, -4f);
 
-        statsPanel = new MonopolyUILayoutRect(new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -36f), new Vector2(470f, 156f));
+        advanceButtonSprite = null;
+        upgradeButtonSprite = null;
+        moneyIconSprite = null;
+
+        statsPanel = new MonopolyUILayoutRect(new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -36f), new Vector2(610f, 240f));
         infoPanel = new MonopolyUILayoutRect(new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 48f), new Vector2(770f, 380f));
         buildButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-555f, 55f), new Vector2(185f, 165f));
         upgradeButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-350f, 55f), new Vector2(185f, 165f));
         diceButton = new MonopolyUILayoutRect(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 55f), new Vector2(285f, 265f));
 
-        moneyText = new MonopolyUITextLayout("\u91D1\u94B1\uFF1A0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 18, 98));
-        turnText = new MonopolyUITextLayout("\u56DE\u5408\uFF1A0/0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 58, 58));
-        incomeText = new MonopolyUITextLayout("\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0", 32, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 98, 18));
+        moneyText = new MonopolyUITextLayout("\u91D1\u94B1\uFF1A0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(92, 24, 16, 190));
+        turnText = new MonopolyUITextLayout("\u56DE\u5408\uFF1A0/0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 54, 152));
+        incomeText = new MonopolyUITextLayout("\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0", 30, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 92, 114));
+        victoryInfoText = new MonopolyUITextLayout("\u83B7\u80DC\u4FE1\u606F\uFF1A\u9650\u5B9A\u56DE\u5408\u7ED3\u675F\u524D\u91D1\u5E01\u6570\u8D85\u8FC7\u654C\u4EBA\n\u654C\u4EBA\u91D1\u5E01\u6570\uFF1A0", 24, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 24, 132, 16));
         infoText = new MonopolyUITextLayout("信息栏", 24, TextAnchor.UpperLeft, new MonopolyUIPadding(32, 32, 28, 28));
         buildButtonText = new MonopolyUITextLayout("建造选项\n默认建造\n连锁餐厅", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));
         upgradeButtonText = new MonopolyUITextLayout("升级选项\n点击后进入\n升级模式", 28, TextAnchor.MiddleCenter, new MonopolyUIPadding(18, 18, 18, 18));

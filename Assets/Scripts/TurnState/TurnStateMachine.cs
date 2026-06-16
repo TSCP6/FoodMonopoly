@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using UnityEngine;
 
 // 回合状态机只负责流程控制，不负责地图生成或 UI。
@@ -22,6 +24,8 @@ public class TurnStateMachine : MonoBehaviour
     [SerializeField] private StateMachineSettings settings = new StateMachineSettings();
     [SerializeField] private List<PlayerData> players = new List<PlayerData>();
     [SerializeField] private float moveStepDelay = 0.12f; //移动时间间隔
+    [SerializeField] private string nextLevelSceneName = "Level_2";
+    [SerializeField] private float winDisplaySeconds = 1f;
 
     public TurnState CurrentState { get; private set; } = TurnState.Idle; //状态
     public int CurrentLevelIndex { get; private set; } //关卡索引
@@ -41,6 +45,7 @@ public class TurnStateMachine : MonoBehaviour
 
     private bool isInitialized; //是否已初始化
     private bool isBusy; //是否正在执行流程（如移动），防止重复触发
+    private bool isTransitioningLevel;
 
     private void Awake()
     {
@@ -514,12 +519,24 @@ public class TurnStateMachine : MonoBehaviour
         EnterState(TurnState.EndTurn);
     }
 
-    private void HandleEndTurn() //回合结束时结算收益，增加回合数，并检查是否需要切换玩家或进入下一关。
+    private void HandleEndTurn() // End one player turn. Advance round only after every player has acted.
     {
         PlayerData player = GetCurrentPlayer();
         SettleTurnIncome(player);
-        CurrentTurnInLevel++;
-        EnterState(TurnState.CheckLevelEnd);
+
+        if (IsLastPlayerInRound())
+        {
+            CurrentTurnInLevel++;
+            EnterState(TurnState.CheckLevelEnd);
+            return;
+        }
+
+        EnterState(TurnState.NextPlayer);
+    }
+
+    private bool IsLastPlayerInRound()
+    {
+        return players == null || players.Count == 0 || CurrentPlayerIndex >= players.Count - 1;
     }
 
     private void HandleNextPlayer() //切换到下一个玩家，如果所有玩家都已轮过一轮则进入下一回合。
@@ -557,6 +574,12 @@ public class TurnStateMachine : MonoBehaviour
                     {
                         LogMessage("全部关卡完成！");
                         EnterState(TurnState.GameOver);
+                        return;
+                    }
+
+                    if (ShouldLoadNextScene())
+                    {
+                        StartCoroutine(ShowWinAndLoadNextLevelRoutine());
                         return;
                     }
 
@@ -1121,6 +1144,52 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         return true;
+    }
+
+    private bool ShouldLoadNextScene()
+    {
+        return !isTransitioningLevel
+            && !string.IsNullOrEmpty(nextLevelSceneName)
+            && SceneManager.GetActiveScene().name == "Level_1";
+    }
+
+    private IEnumerator ShowWinAndLoadNextLevelRoutine()
+    {
+        isTransitioningLevel = true;
+        isBusy = true;
+        ShowWinOverlay();
+        yield return new WaitForSeconds(winDisplaySeconds);
+        SceneManager.LoadScene(nextLevelSceneName);
+    }
+
+    private void ShowWinOverlay()
+    {
+        GameObject root = new GameObject("Level Win Overlay", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        Canvas canvas = root.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 10000;
+
+        CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        GameObject textObject = new GameObject("WIN Text", typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(root.transform, false);
+
+        RectTransform rect = textObject.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Text text = textObject.GetComponent<Text>();
+        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.text = "WIN";
+        text.fontSize = 180;
+        text.fontStyle = FontStyle.Bold;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.color = new Color(1f, 0.86f, 0.12f, 1f);
     }
 
     private void ChangeMoney(PlayerData player, int delta)

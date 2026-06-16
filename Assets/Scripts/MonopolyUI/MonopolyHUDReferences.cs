@@ -12,9 +12,11 @@ public class MonopolyHUDReferences
 
     [Header("Stats Panel")]
     public RectTransform statsPanel;
+    public Image moneyIcon;
     public Text moneyText;
     public Text turnText;
     public Text incomeText;
+    public Text victoryInfoText;
 
     [Header("Info Panel")]
     public RectTransform infoPanel;
@@ -24,8 +26,10 @@ public class MonopolyHUDReferences
     public Button buildButton;
     public Text buildButtonText;
     public Button upgradeButton;
+    public Image upgradeButtonIcon;
     public Text upgradeButtonText;
     public Button diceButton;
+    public Image diceButtonIcon;
     public Text diceButtonText;
 
     public bool HasRequiredReferences()
@@ -33,6 +37,7 @@ public class MonopolyHUDReferences
         return moneyText != null
             && turnText != null
             && incomeText != null
+            && victoryInfoText != null
             && infoText != null
             && buildButton != null
             && upgradeButton != null

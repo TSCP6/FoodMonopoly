@@ -73,17 +73,22 @@ public class MonopolyHUDLayoutWindow : EditorWindow
 
         DrawSection("Canvas", "referenceResolution", "matchWidthOrHeight", "sortingOrder");
         DrawSection("Colors", "panelColor", "buttonColor", "buttonHighlightColor", "buttonPressedColor", "buttonDisabledColor", "textColor", "outlineColor", "outlineDistance");
+        DrawSection("Sprites", "advanceButtonSprite", "upgradeButtonSprite", "moneyIconSprite");
         DrawLayoutSection("Stats Panel", "statsPanel");
+        DrawImageSection("Money Icon", "moneyIcon");
         DrawTextSection("Money Text", "moneyText");
         DrawTextSection("Turn Text", "turnText");
         DrawTextSection("Income Text", "incomeText");
+        DrawTextSection("Victory Info Text", "victoryInfoText");
         DrawLayoutSection("Info Panel", "infoPanel");
         DrawTextSection("Info Text", "infoText");
         DrawLayoutSection("Build Button", "buildButton");
         DrawTextSection("Build Button Text", "buildButtonText");
         DrawLayoutSection("Upgrade Button", "upgradeButton");
+        DrawImageSection("Upgrade Button Icon", "upgradeButtonIcon");
         DrawTextSection("Upgrade Button Text", "upgradeButtonText");
         DrawLayoutSection("Dice Button", "diceButton");
+        DrawImageSection("Dice Button Icon", "diceButtonIcon");
         DrawTextSection("Dice Button Text", "diceButtonText");
 
         EditorGUILayout.EndScrollView();
@@ -167,6 +172,18 @@ public class MonopolyHUDLayoutWindow : EditorWindow
             EditorGUILayout.PropertyField(property.FindPropertyRelative("defaultText"));
             EditorGUILayout.PropertyField(property.FindPropertyRelative("fontSize"));
             EditorGUILayout.PropertyField(property.FindPropertyRelative("alignment"));
+            EditorGUILayout.PropertyField(property.FindPropertyRelative("padding"), true);
+        }
+    }
+
+    private void DrawImageSection(string title, string propertyName)
+    {
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+
+        SerializedProperty property = serializedSettings.FindProperty(propertyName);
+        using (new EditorGUI.IndentLevelScope())
+        {
             EditorGUILayout.PropertyField(property.FindPropertyRelative("padding"), true);
         }
     }

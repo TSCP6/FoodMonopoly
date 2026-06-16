@@ -8,6 +8,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class MonopolyHUD : MonoBehaviour
 {
+    private const string DiceButtonDefaultText = "\u63B7\u9AB0 / \u8DF3\u8FC7\n\u56DE\u5408\u5F00\u59CB\u63B7\u9AB0\n\u53EF\u9009\u884C\u52A8\u8DF3\u8FC7";
+
     [Header("Scene References")]
     [SerializeField] private TurnStateMachine stateMachine;
     [SerializeField] private BoardGridRegistry boardRegistry;
@@ -79,6 +81,13 @@ public class MonopolyHUD : MonoBehaviour
 
     private void OnDisable()
     {
+        if (diceResultRoutine != null)
+        {
+            StopCoroutine(diceResultRoutine);
+            diceResultRoutine = null;
+        }
+
+        RestoreDiceButtonText();
         Unsubscribe();
     }
 
@@ -396,13 +405,17 @@ public class MonopolyHUD : MonoBehaviour
     {
         SetRaycastTarget(ui.statsPanel, false);
         SetRaycastTarget(ui.infoPanel, false);
+        SetRaycastTarget(ui.moneyIcon, false);
         SetRaycastTarget(ui.moneyText, false);
         SetRaycastTarget(ui.turnText, false);
         SetRaycastTarget(ui.incomeText, false);
+        SetRaycastTarget(ui.victoryInfoText, false);
         SetRaycastTarget(ui.infoText, false);
         SetButtonRaycastTarget(ui.buildButton, true);
         SetButtonRaycastTarget(ui.upgradeButton, true);
         SetButtonRaycastTarget(ui.diceButton, true);
+        SetRaycastTarget(ui.upgradeButtonIcon, false);
+        SetRaycastTarget(ui.diceButtonIcon, false);
         SetRaycastTarget(ui.buildButtonText, false);
         SetRaycastTarget(ui.upgradeButtonText, false);
         SetRaycastTarget(ui.diceButtonText, false);
@@ -598,15 +611,8 @@ public class MonopolyHUD : MonoBehaviour
 
     private IEnumerator ShowDiceResultRoutine(int value)
     {
-        if (ui.diceButtonText == null)
-        {
-            yield break;
-        }
-
-        string previousText = ui.diceButtonText.text;
-        ui.diceButtonText.text = "\u9AB0\u5B50\uFF1A" + value;
+        SetInfo("\u9AB0\u5B50\uFF1A" + value);
         yield return new WaitForSeconds(1f);
-        ui.diceButtonText.text = previousText;
         diceResultRoutine = null;
     }
 
@@ -678,12 +684,14 @@ public class MonopolyHUD : MonoBehaviour
 
         if (ui.upgradeButtonText != null)
         {
-            ui.upgradeButtonText.text = "升级\n点击后选择\n己方建筑";
+            ui.upgradeButtonText.text = string.Empty;
+            ui.upgradeButtonText.enabled = false;
         }
 
         if (ui.diceButtonText != null)
         {
-            ui.diceButtonText.text = "掷骰 / 跳过\n回合开始掷骰\n可选行动跳过";
+            ui.diceButtonText.text = string.Empty;
+            ui.diceButtonText.enabled = false;
         }
 
         RefreshStats();
@@ -691,9 +699,18 @@ public class MonopolyHUD : MonoBehaviour
         RefreshBoardVisuals();
     }
 
+    private void RestoreDiceButtonText()
+    {
+        if (ui.diceButtonText != null)
+        {
+            ui.diceButtonText.text = string.Empty;
+            ui.diceButtonText.enabled = false;
+        }
+    }
+
     private void RefreshStats()
     {
-        PlayerData player = GetActionPlayer();
+        PlayerData player = GetHumanPlayerData();
         int money = player == null ? fallbackMoney : player.money;
         int income = player == null ? fallbackIncome : CalculateCurrentPlayerIncome(player);
         int currentTurn = stateMachine == null ? 0 : stateMachine.CurrentTurnInLevel;
@@ -718,6 +735,60 @@ public class MonopolyHUD : MonoBehaviour
         {
             ui.incomeText.text = "\u6BCF\u56DE\u5408\u6536\u5165\uFF1A" + income;
         }
+
+        if (ui.victoryInfoText != null)
+        {
+            ui.victoryInfoText.text = "\u83B7\u80DC\u4FE1\u606F\uFF1A\u9650\u5B9A\u56DE\u5408\u7ED3\u675F\u524D\u91D1\u5E01\u6570\u8D85\u8FC7\u654C\u4EBA\n"
+                + "\u654C\u4EBA\u91D1\u5E01\u6570\uFF1A" + GetEnemyMoney();
+        }
+    }
+
+    private PlayerData GetHumanPlayerData()
+    {
+        if (stateMachine == null)
+        {
+            return null;
+        }
+
+        List<PlayerData> players = stateMachine.GetAllPlayers();
+        if (players == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i].playerKind == PlayerKind.Player)
+            {
+                return players[i];
+            }
+        }
+
+        return null;
+    }
+
+    private int GetEnemyMoney()
+    {
+        if (stateMachine == null)
+        {
+            return 0;
+        }
+
+        List<PlayerData> players = stateMachine.GetAllPlayers();
+        if (players == null)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i] != null && players[i].playerKind == PlayerKind.Enemy)
+            {
+                return players[i].money;
+            }
+        }
+
+        return 0;
     }
 
     private int CalculateCurrentPlayerIncome(PlayerData player)
@@ -987,20 +1058,32 @@ public class MonopolyHUD : MonoBehaviour
         }
     }
 
+    private PlayerData GetPlayerById(int playerId)
+    {
+        if (stateMachine == null)
+        {
+            return null;
+        }
+
+        return stateMachine.GetPlayer(playerId);
+    }
+
     private string GetOwnerLabel(int ownerPlayerId)
     {
         if (ownerPlayerId < 0)
         {
-            return "无";
+            return "\u65E0";
         }
 
-        PlayerData player = GetActionPlayer();
-        if (player != null && ownerPlayerId == player.playerId)
+        PlayerData owner = GetPlayerById(ownerPlayerId);
+        if (owner != null)
         {
-            return player.playerName;
+            return owner.playerKind == PlayerKind.Enemy
+                ? "\u654C\u4EBA " + owner.playerName
+                : "\u73A9\u5BB6 " + owner.playerName;
         }
 
-        return "玩家 " + ownerPlayerId;
+        return "\u73A9\u5BB6 " + ownerPlayerId;
     }
 
     private string GetBuildingName(BuildingType buildingType)
