@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -18,9 +19,13 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     [SerializeField] private Vector3 labelBackScale = new Vector3(1.25f, 0.42f, 0.02f);
     [SerializeField] private float refreshInterval = 0.15f;
 
+    [Header("Building Prefabs")]
+    [SerializeField] private List<BuildingPrefabEntry> buildingPrefabs = new List<BuildingPrefabEntry>();
+
     private readonly List<GridVisual> visuals = new List<GridVisual>();
     private readonly Dictionary<BoardGridView, GridVisual> visualMap = new Dictionary<BoardGridView, GridVisual>();
     private readonly List<Material> runtimeMaterials = new List<Material>();
+    private readonly Dictionary<(BuildingType, int), GameObject> prefabLookup = new Dictionary<(BuildingType, int), GameObject>();
 
     private Material buildableMaterial;
     private Material playerMaterial;
@@ -32,8 +37,17 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     private float nextRefreshTime;
     private Camera mainCamera;
 
+    [Serializable]
+    public class BuildingPrefabEntry
+    {
+        public BuildingType buildingType;
+        public int level = 1;
+        public GameObject prefab;
+    }
+
     private void Awake()
     {
+        BuildPrefabLookup();
         ResolveReferences();
         CreateMaterials();
         RebuildVisuals();
@@ -57,6 +71,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         }
 
         runtimeMaterials.Clear();
+        prefabLookup.Clear();
     }
 
     private void Update()
@@ -97,8 +112,29 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         stateMachine = targetStateMachine;
         boardRegistry = targetBoardRegistry;
         hud = targetHud;
+        BuildPrefabLookup();
         RebuildVisuals();
         RefreshNow();
+    }
+
+    /// <summary>
+    /// 从模板复制建筑预制体列表。呼叫后自动重建 prefabLookup。
+    /// 用于运行时动态创建 Visualizer 时注入 Inspector 中配置的模板数据。
+    /// </summary>
+    public void CopyPrefabsFromTemplate(MonopolyBoardBuildVisualizer template)
+    {
+        if (template == null)
+        {
+            return;
+        }
+
+        buildingPrefabs.Clear();
+        for (int i = 0; i < template.buildingPrefabs.Count; i++)
+        {
+            buildingPrefabs.Add(template.buildingPrefabs[i]);
+        }
+
+        BuildPrefabLookup();
     }
 
     public void RefreshNow()
@@ -133,6 +169,25 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             }
 
             RefreshGridVisual(visual, gridView, currentPlayer, currentGrid, isOptionalAction);
+        }
+    }
+
+    private void BuildPrefabLookup()
+    {
+        prefabLookup.Clear();
+        for (int i = 0; i < buildingPrefabs.Count; i++)
+        {
+            BuildingPrefabEntry entry = buildingPrefabs[i];
+            if (entry.prefab == null)
+            {
+                continue;
+            }
+
+            var key = (entry.buildingType, entry.level);
+            if (!prefabLookup.ContainsKey(key))
+            {
+                prefabLookup.Add(key, entry.prefab);
+            }
         }
     }
 
@@ -200,11 +255,11 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         marker.transform.localScale = new Vector3(0.72f, 0.025f, 0.72f);
         Destroy(marker.GetComponent<Collider>());
 
-        GameObject building = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        building.name = "Building Marker";
-        building.transform.SetParent(root.transform, false);
-        building.transform.localPosition = new Vector3(0f, 0.65f, 0f);
-        Destroy(building.GetComponent<Collider>());
+        // 建筑容器：预制体实例将挂在这个容器下
+        GameObject buildingContainer = new GameObject("Building Container");
+        buildingContainer.transform.SetParent(root.transform, false);
+        buildingContainer.transform.localPosition = Vector3.zero;
+        buildingContainer.transform.localRotation = Quaternion.identity;
 
         GameObject labelRoot = new GameObject("Label");
         labelRoot.transform.SetParent(root.transform, false);
@@ -243,8 +298,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         {
             root = root,
             markerRenderer = marker.GetComponent<Renderer>(),
-            building = building,
-            buildingRenderer = building.GetComponent<Renderer>(),
+            buildingContainer = buildingContainer,
             labelRoot = labelRoot,
             labelBack = back,
             label = textMesh
@@ -307,8 +361,11 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         visual.SetBuildingVisible(true);
         visual.SetLabelVisible(true);
         visual.markerRenderer.sharedMaterial = ownedByHuman ? playerMaterial : enemyMaterial;
-        visual.buildingRenderer.sharedMaterial = ownedByHuman ? playerMaterial : enemyMaterial;
-        ApplyBuildingShape(visual, grid.buildingData);
+        ApplyBuildingPrefab(visual, grid.buildingData);
+
+        // 根据归属给预制体 Renderer 着色
+        Material buildingMat = ownedByHuman ? playerMaterial : enemyMaterial;
+        ApplyBuildingMaterial(visual, buildingMat);
 
         int income = GridRules.GetTurnIncome(grid.buildingData);
         int passFee = GridRules.GetPassFee(grid.buildingData);
@@ -320,30 +377,67 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             + "\n" + upgradeText + " 收" + income + " 路" + passFee;
     }
 
-    private void ApplyBuildingShape(GridVisual visual, BuildingData buildingData)
+    private void ApplyBuildingPrefab(GridVisual visual, BuildingData buildingData)
     {
         if (buildingData == null)
         {
+            visual.DestroyBuildingInstance();
             visual.SetBuildingVisible(false);
             return;
         }
 
-        float height = 0.38f + buildingData.level * 0.18f;
-        float width = 0.28f;
+        var key = (buildingData.buildingType, buildingData.level);
 
-        switch (buildingData.buildingType)
+        // 如果已有实例且预制体没变，不需要重建
+        if (visual.currentPrefabKey.HasValue && visual.currentPrefabKey.Value == key && visual.buildingInstance != null)
         {
-            case BuildingType.CrownRestaurant:
-                width = 0.38f;
-                break;
-            case BuildingType.FineRestaurant:
-                width = 0.24f;
-                height += 0.12f;
-                break;
+            return;
         }
 
-        visual.building.transform.localScale = new Vector3(width, height, width);
-        visual.building.transform.localPosition = new Vector3(0f, markerHeight + height * 0.5f + 0.05f, 0f);
+        // 销毁旧实例
+        visual.DestroyBuildingInstance();
+
+        // 查找对应预制体
+        if (!prefabLookup.TryGetValue(key, out GameObject prefab))
+        {
+            Debug.LogWarning($"[MonopolyBoardBuildVisualizer] 未找到预制体: BuildingType={buildingData.buildingType}, Level={buildingData.level}");
+            visual.SetBuildingVisible(false);
+            return;
+        }
+
+        // 实例化预制体，挂到容器下
+        GameObject instance = Instantiate(prefab, visual.buildingContainer.transform);
+        instance.name = $"Building_{buildingData.buildingType}_Lv{buildingData.level}";
+        instance.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+        instance.transform.localRotation = Quaternion.identity;
+        instance.transform.localScale = Vector3.one;
+        instance.SetActive(true);
+
+        // 收集所有 Renderer，根据归属着色
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        if (renderers != null && renderers.Length > 0)
+        {
+            visual.buildingRenderers = renderers;
+        }
+
+        visual.buildingInstance = instance;
+        visual.currentPrefabKey = key;
+    }
+
+    private void ApplyBuildingMaterial(GridVisual visual, Material material)
+    {
+        if (visual.buildingRenderers == null || material == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < visual.buildingRenderers.Length; i++)
+        {
+            if (visual.buildingRenderers[i] != null)
+            {
+                visual.buildingRenderers[i].sharedMaterial = material;
+            }
+        }
     }
 
     private PlayerData GetCurrentPlayer()
@@ -487,9 +581,14 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     {
         for (int i = 0; i < visuals.Count; i++)
         {
-            if (visuals[i] != null && visuals[i].root != null)
+            if (visuals[i] != null)
             {
-                Destroy(visuals[i].root);
+                visuals[i].DestroyBuildingInstance();
+
+                if (visuals[i].root != null)
+                {
+                    Destroy(visuals[i].root);
+                }
             }
         }
 
@@ -501,8 +600,14 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     {
         public GameObject root;
         public Renderer markerRenderer;
-        public GameObject building;
-        public Renderer buildingRenderer;
+        /// <summary>建筑预制体实例的父容器</summary>
+        public GameObject buildingContainer;
+        /// <summary>当前实例化的建筑预制体</summary>
+        public GameObject buildingInstance;
+        /// <summary>建筑预制体上的 Renderer 组件（用于着色）</summary>
+        public Renderer[] buildingRenderers;
+        /// <summary>当前实例的预制体标识，用于判断是否需要切换</summary>
+        public (BuildingType, int)? currentPrefabKey;
         public GameObject labelRoot;
         public GameObject labelBack;
         public TextMesh label;
@@ -517,9 +622,9 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
         public void SetBuildingVisible(bool visible)
         {
-            if (building != null && building.activeSelf != visible)
+            if (buildingContainer != null && buildingContainer.activeSelf != visible)
             {
-                building.SetActive(visible);
+                buildingContainer.SetActive(visible);
             }
         }
 
@@ -529,6 +634,18 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             {
                 labelRoot.SetActive(visible);
             }
+        }
+
+        public void DestroyBuildingInstance()
+        {
+            if (buildingInstance != null)
+            {
+                UnityEngine.Object.Destroy(buildingInstance);
+                buildingInstance = null;
+            }
+
+            buildingRenderers = null;
+            currentPrefabKey = null;
         }
     }
 }

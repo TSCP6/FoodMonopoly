@@ -19,6 +19,9 @@ public class MonopolyHUD : MonoBehaviour
     [SerializeField] private bool createBoardClicker = true;
     [SerializeField] private MonopolyHUDLayoutSettings layoutSettings;
 
+    [Header("Board Visualizer Template")]
+    [SerializeField] private MonopolyBoardBuildVisualizer visualizerTemplate;
+
     [Header("Building")]
     [SerializeField] private BuildingType defaultBuildType = BuildingType.ChainRestaurant;
     [SerializeField] private bool enableKeyboardActionShortcuts = false;
@@ -359,6 +362,11 @@ public class MonopolyHUD : MonoBehaviour
             boardVisualizer = visualizerObject.AddComponent<MonopolyBoardBuildVisualizer>();
         }
 
+        if (visualizerTemplate != null)
+        {
+            boardVisualizer.CopyPrefabsFromTemplate(visualizerTemplate);
+        }
+
         boardVisualizer.Bind(stateMachine, boardRegistry, this);
     }
 
@@ -529,7 +537,6 @@ public class MonopolyHUD : MonoBehaviour
         if (!string.IsNullOrEmpty(pendingEventMessage))
         {
             builder.AppendLine();
-            builder.AppendLine("--- 事件 ---");
             builder.Append(pendingEventMessage);
             pendingEventMessage = null;
         }
