@@ -34,6 +34,7 @@ public class TurnStateMachine : MonoBehaviour
     public event Action<PlayerData, GridData> OnGridResolved; //格子结算事件
     public event Action<OptionalActionContext> OnOptionalActionRequested; //可选行动请求事件
     public event Action<string> OnMessage; //消息事件
+    public event Action<string> OnEventMessage; //来自 EventGridResolver 的事件消息，会显示在 infoText 面板上
 
     private bool isInitialized; //是否已初始化
     private bool isBusy; //是否正在执行流程（如移动），防止重复触发
@@ -111,7 +112,7 @@ public class TurnStateMachine : MonoBehaviour
 
         AssignRandomStartPositions();
 
-        LogMessage("Turn state machine initialized.");
+        LogMessage("回合状态机已初始化。");
     }
 
     // 随机分配玩家和敌人的初始位置。
@@ -156,7 +157,7 @@ public class TurnStateMachine : MonoBehaviour
                 mover.SnapToGrid(startGrid.transform);
             }
 
-            LogMessage(player.playerName + " starts at grid " + pos);
+            LogMessage(player.playerName + " 从格子 " + pos + " 出发。");
         }
     }
 
@@ -166,7 +167,7 @@ public class TurnStateMachine : MonoBehaviour
     {
         if (boardGridRegistry == null)
         {
-            LogMessage("BoardGridRegistry missing.");
+            LogMessage("棋盘注册表未找到。");
             return;
         }
 
@@ -216,7 +217,7 @@ public class TurnStateMachine : MonoBehaviour
                 HandleCheckLevelEnd();
                 break;
             case TurnState.GameOver:
-                LogMessage("Game over.");
+                LogMessage("游戏结束。");
                 break;
         }
     }
@@ -242,12 +243,12 @@ public class TurnStateMachine : MonoBehaviour
         }
 
         OnPlayerChanged?.Invoke(player);
-        LogMessage(player.playerName + " 's turn.");
+        LogMessage(player.playerName + " 的回合。");
 
         // 敌人自动掷骰，玩家等待 UI 按钮调用 RequestTurnStart()
         if (player.playerKind == PlayerKind.Enemy)
         {
-            LogMessage("Turn started (auto): " + player.playerName);
+            LogMessage("回合开始（自动）：" + player.playerName);
             EnterState(TurnState.RollDice);
         }
     }
@@ -273,7 +274,7 @@ public class TurnStateMachine : MonoBehaviour
             return;
         }
 
-        LogMessage("Turn started: " + player.playerName);
+        LogMessage("回合开始：" + player.playerName);
         EnterState(TurnState.RollDice);
     }
 
@@ -314,7 +315,7 @@ public class TurnStateMachine : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
-        LogMessage(player.playerName + " rolled " + LastDiceValue);
+        LogMessage(player.playerName + " 掷出了 " + LastDiceValue);
 
         isBusy = false;
         EnterState(TurnState.Move);
@@ -372,10 +373,10 @@ public class TurnStateMachine : MonoBehaviour
                 yield return StartCoroutine(mover.MoveToGrid(bumpedGrid.transform));
             }
 
-            LogMessage(player.playerName + " bumped to grid " + player.position + " to avoid overlap");
+            LogMessage(player.playerName + " 为避免重叠跳到格子 " + player.position);
         }
 
-        LogMessage(player.playerName + " moved to grid " + player.position);
+        LogMessage(player.playerName + " 移动到格子 " + player.position);
 
         isBusy = false;
         EnterState(TurnState.ResolveGrid);
@@ -396,7 +397,7 @@ public class TurnStateMachine : MonoBehaviour
 
         if (view.IsBuildingGrid)
         {
-            LogMessage(player.playerName + " landed on building grid " + grid.index);
+            LogMessage(player.playerName + " 踏上了建筑格 " + grid.index);
 
             //如果格子上有建筑，并且不是玩家自己的，就执行过路费结算。
             if (grid.HasBuilding && grid.ownerPlayerId >= 0 && grid.ownerPlayerId != player.playerId)
@@ -406,7 +407,7 @@ public class TurnStateMachine : MonoBehaviour
         }
         else if (view.IsEventGrid)
         {
-            LogMessage(player.playerName + " landed on event grid " + grid.index + " tag: " + view.gameObject.tag);
+            LogMessage(player.playerName + " 踏上了事件格 " + grid.index + "，标签：" + view.gameObject.tag);
             ResolveEventGrid(view, player);
         }
 
@@ -423,12 +424,12 @@ public class TurnStateMachine : MonoBehaviour
         {
             if (!HasPlayableHumanOptionalAction(context))
             {
-                LogMessage(context.currentPlayer.playerName + " has no optional action and skipped.");
+                LogMessage(context.currentPlayer.playerName + " 无可选行动，已跳过。");
                 EnterState(TurnState.EndTurn);
                 return;
             }
 
-            LogMessage(context.currentPlayer.playerName + " is waiting for optional action.");
+            LogMessage(context.currentPlayer.playerName + " 等待执行可选行动。");
             return;
         }
 
@@ -443,7 +444,7 @@ public class TurnStateMachine : MonoBehaviour
         }
         else
         {
-            LogMessage(context.currentPlayer.playerName + " skipped optional action.");
+            LogMessage(context.currentPlayer.playerName + " 跳过了可选行动。");
         }
 
         EnterState(TurnState.EndTurn);
@@ -503,7 +504,7 @@ public class TurnStateMachine : MonoBehaviour
         PlayerData player = GetCurrentPlayer();
         if (player != null)
         {
-            LogMessage(player.playerName + " skipped optional action.");
+            LogMessage(player.playerName + " 跳过了可选行动。");
         }
 
         EnterState(TurnState.EndTurn);
@@ -541,30 +542,30 @@ public class TurnStateMachine : MonoBehaviour
                 if (humanPlayer.money > enemyPlayer.money)
                 {
                     // 玩家金钱多于敌人，过关进入下一关。
-                    LogMessage("Level " + (CurrentLevelIndex + 1) + " passed! " +
-                               humanPlayer.playerName + " has " + humanPlayer.money + " money vs " +
-                               enemyPlayer.playerName + " has " + enemyPlayer.money + " money.");
+                    LogMessage("第 " + (CurrentLevelIndex + 1) + " 关通过！" +
+                               humanPlayer.playerName + " 持有 " + humanPlayer.money + " 金币，对手 " +
+                               enemyPlayer.playerName + " 持有 " + enemyPlayer.money + " 金币。");
 
                     CurrentLevelIndex++;
                     OnLevelChanged?.Invoke(CurrentLevelIndex);
 
                     if (CurrentLevelIndex >= settings.levelCount)
                     {
-                        LogMessage("All levels completed!");
+                        LogMessage("全部关卡完成！");
                         EnterState(TurnState.GameOver);
                         return;
                     }
 
                     ResetForNextLevel();
                     AssignRandomStartPositions();
-                    LogMessage("Level " + (CurrentLevelIndex + 1) + " started.");
+                    LogMessage("第 " + (CurrentLevelIndex + 1) + " 关开始。");
                 }
                 else
                 {
                     // 玩家金钱不高于敌人，重新开始当前关卡。
-                    LogMessage("Level " + (CurrentLevelIndex + 1) + " failed. " +
-                               humanPlayer.playerName + " has " + humanPlayer.money + " money vs " +
-                               enemyPlayer.playerName + " has " + enemyPlayer.money + " money. Restarting...");
+                    LogMessage("第 " + (CurrentLevelIndex + 1) + " 关失败。" +
+                               humanPlayer.playerName + " 持有 " + humanPlayer.money + " 金币，对手 " +
+                               enemyPlayer.playerName + " 持有 " + enemyPlayer.money + " 金币，重新开始...");
                     ResetCurrentLevel();
                     AssignRandomStartPositions();
                 }
@@ -893,7 +894,7 @@ public class TurnStateMachine : MonoBehaviour
         int buildCost = GridRules.GetBuildCost(buildingType);
         if (player.money < buildCost)
         {
-            LogMessage(player.playerName + " has not enough money to build.");
+            LogMessage(player.playerName + " 金钱不足，无法建造。");
             return false;
         }
 
@@ -905,7 +906,7 @@ public class TurnStateMachine : MonoBehaviour
             player.ownedGridIndexes.Add(gridView.GridIndex);
         }
 
-        LogMessage(player.playerName + " built a " + buildingType + " at grid " + gridView.GridIndex);
+        LogMessage(player.playerName + " 在格子 " + gridView.GridIndex + " 建造了 " + buildingType);
         return true;
     }
 
@@ -920,20 +921,20 @@ public class TurnStateMachine : MonoBehaviour
     {
         if (target == null)
         {
-            LogMessage("No upgrade target found.");
+            LogMessage("未找到可升级目标。");
             return false;
         }
 
         int upgradeCost = GridRules.GetUpgradeCost(target.RuntimeData.buildingData.buildingType, target.RuntimeData.buildingData.level);
         if (player.money < upgradeCost)
         {
-            LogMessage(player.playerName + " has not enough money to upgrade.");
+            LogMessage(player.playerName + " 金钱不足，无法升级。");
             return false;
         }
 
         ChangeMoney(player, -upgradeCost);
         target.UpgradeBuilding();
-        LogMessage(player.playerName + " upgraded grid " + target.GridIndex + " to level " + target.RuntimeData.buildingData.level);
+        LogMessage(player.playerName + " 将格子 " + target.GridIndex + " 升级到 " + target.RuntimeData.buildingData.level + " 级");
         return true;
     }
 
@@ -1007,7 +1008,7 @@ public class TurnStateMachine : MonoBehaviour
             player,
             players,
             boardGridRegistry,
-            LogMessage,
+            LogEventMessage,
             ChangeMoney,
             GetPlayerMover,
             ResolvePassFeeOnly,
@@ -1079,7 +1080,7 @@ public class TurnStateMachine : MonoBehaviour
         if (income > 0)
         {
             ChangeMoney(player, income);
-            LogMessage(player.playerName + " gained turn income: " + income);
+            LogMessage(player.playerName + " 获得回合收入：" + income);
         }
     }
 
@@ -1097,7 +1098,7 @@ public class TurnStateMachine : MonoBehaviour
         ChangeMoney(currentPlayer, -paidFee);
         ChangeMoney(owner, paidFee);
 
-        LogMessage(currentPlayer.playerName + " paid pass fee " + paidFee + " to " + owner.playerName);
+        LogMessage(currentPlayer.playerName + " 向 " + owner.playerName + " 支付过路费 " + paidFee);
     }
 
     private PlayerData GetPlayerById(int playerId)
@@ -1145,5 +1146,12 @@ public class TurnStateMachine : MonoBehaviour
     {
         Debug.Log("[TurnStateMachine] " + message);
         OnMessage?.Invoke(message);
+    }
+
+    // 事件消息：来自 EventGridResolver 的事件，同时触发 OnMessage 和 OnEventMessage。
+    private void LogEventMessage(string message)
+    {
+        LogMessage(message);
+        OnEventMessage?.Invoke(message);
     }
 }

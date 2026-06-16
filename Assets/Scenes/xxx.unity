@@ -4578,8 +4578,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1168779298}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: 0.0024016064, y: 0.8974827, z: -0.44101614, w: 0.004886174}
+  m_LocalPosition: {x: 0.74687433, y: 8.949567, z: 7.0732408}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -5328,13 +5328,19 @@ MonoBehaviour:
     incomeText: {fileID: 0}
     infoPanel: {fileID: 0}
     infoText: {fileID: 0}
+    buildButton: {fileID: 0}
+    buildButtonText: {fileID: 0}
     upgradeButton: {fileID: 0}
     upgradeButtonText: {fileID: 0}
     diceButton: {fileID: 0}
     diceButtonText: {fileID: 0}
   autoFindSceneObjects: 1
   createRuntimeUI: 1
+  createBoardVisualizer: 1
+  createBoardClicker: 1
   layoutSettings: {fileID: 11400000, guid: d8222d1d879087549870ee46e910bd7c, type: 2}
+  defaultBuildType: 0
+  enableKeyboardActionShortcuts: 0
   fallbackMoney: 0
   fallbackIncome: 0
   OnActionClicked:

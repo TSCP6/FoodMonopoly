@@ -15,7 +15,7 @@ MonoBehaviour:
   referenceResolution: {x: 1920, y: 1080}
   matchWidthOrHeight: 0.5
   sortingOrder: 100
-  panelColor: {r: 1, g: 1, b: 1, a: 0.62}
+  panelColor: {r: 1, g: 1, b: 1, a: 0.5019608}
   buttonColor: {r: 1, g: 1, b: 1, a: 0.68}
   buttonHighlightColor: {r: 0.92, g: 0.97, b: 1, a: 0.82}
   buttonPressedColor: {r: 0.84, g: 0.92, b: 1, a: 0.9}
@@ -34,7 +34,13 @@ MonoBehaviour:
     anchorMax: {x: 0, y: 0}
     pivot: {x: 0, y: 0}
     anchoredPosition: {x: 48, y: 48}
-    sizeDelta: {x: 770, y: 290}
+    sizeDelta: {x: 770, y: 320}
+  buildButton:
+    anchorMin: {x: 1, y: 0}
+    anchorMax: {x: 1, y: 0}
+    pivot: {x: 1, y: 0}
+    anchoredPosition: {x: -555, y: 55}
+    sizeDelta: {x: 185, y: 165}
   upgradeButton:
     anchorMin: {x: 1, y: 0}
     anchorMax: {x: 1, y: 0}
@@ -52,43 +58,52 @@ MonoBehaviour:
     fontSize: 32
     alignment: 0
     padding:
-      m_Left: 32
-      m_Right: 24
-      m_Top: 18
-      m_Bottom: 58
+      left: 32
+      right: 24
+      top: 18
+      bottom: 58
   incomeText:
     defaultText: "\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0"
     fontSize: 32
     alignment: 0
     padding:
-      m_Left: 32
-      m_Right: 24
-      m_Top: 58
-      m_Bottom: 18
+      left: 32
+      right: 24
+      top: 58
+      bottom: 18
   infoText:
     defaultText: "\u4FE1\u606F\u680F"
-    fontSize: 31
+    fontSize: 28
     alignment: 0
     padding:
-      m_Left: 32
-      m_Right: 32
-      m_Top: 28
-      m_Bottom: 28
+      left: 32
+      right: 32
+      top: 28
+      bottom: 28
+  buildButtonText:
+    defaultText: "\u5EFA\u9020\u9009\u9879\n\u9ED8\u8BA4\u5EFA\u9020\n\u8FDE\u9501\u9910\u5385"
+    fontSize: 28
+    alignment: 4
+    padding:
+      left: 18
+      right: 18
+      top: 18
+      bottom: 18
   upgradeButtonText:
     defaultText: "\u5347\u7EA7\u9009\u9879\n\u70B9\u51FB\u540E\u8FDB\u5165\n\u5347\u7EA7\u6A21\u5F0F"
     fontSize: 28
     alignment: 4
     padding:
-      m_Left: 18
-      m_Right: 18
-      m_Top: 18
-      m_Bottom: 18
+      left: 18
+      right: 18
+      top: 18
+      bottom: 18
   diceButtonText:
     defaultText: "\u9AB0\u5B50\u9009\u9879\n\u70B9\u51FB\u540E\u8FDB\u5165\u4E0B\u4E00\n\u56DE\u5408"
     fontSize: 34
     alignment: 4
     padding:
-      m_Left: 18
-      m_Right: 18
-      m_Top: 18
-      m_Bottom: 18
+      left: 18
+      right: 18
+      top: 18
+      bottom: 18
