@@ -53,8 +53,7 @@ public static class EventGridResolver
                 ResolveDebuff(view, currentPlayer, allPlayers, boardRegistry, logMessage, changeMoney);
                 break;
             default:
-                // logMessage(currentPlayer.playerName + " triggered an unknown event on grid " + view.GridIndex);
-                logMessage(currentPlayer.playerName + " triggered an unknown event on grid " + view.GridIndex);
+                logMessage(currentPlayer.playerName + " 在格子 " + view.GridIndex + " 触发了未知事件。");
                 break;
         }
     }
@@ -100,16 +99,14 @@ public static class EventGridResolver
         PlayerData target = PickOneOpponent(currentPlayer, allPlayers);
         if (target == null)
         {
-            // logMessage(currentPlayer.playerName + " 触发香蕉皮，但没有可用的对手。");
-            logMessage(currentPlayer.playerName + " triggered Banana Peel, but no opponent available.");
+            logMessage(currentPlayer.playerName + " 触发香蕉皮，但没有可用的对手。");
             return;
         }
 
         int boardSize = boardRegistry != null && boardRegistry.Count > 0 ? boardRegistry.Count : 36;
         int oldPosition = target.position;
         target.position = (target.position - 1 + boardSize) % boardSize;
-        // logMessage(currentPlayer.playerName + " 踩到香蕉皮让 " + target.playerName + " 后退1格，现在位于格子 " + target.position);
-        logMessage(currentPlayer.playerName + " used Banana Peel! " + target.playerName + " moves back 1 grid (now at " + target.position + ").");
+        logMessage(currentPlayer.playerName + " 踩到香蕉皮让 " + target.playerName + " 后退1格，现在位于格子 " + target.position);
 
         // 后退后检查是否与其他人重叠，若重叠则向前跳格。
         int bumpGuard = 0;
@@ -119,7 +116,7 @@ public static class EventGridResolver
             target.position = (target.position + 1) % boardSize;
             bumpGuard++;
             overlapsBananaCaster = isPositionOccupied != null && isPositionOccupied(target.position, target);
-            logMessage(target.playerName + " bumped to grid " + target.position + " to avoid overlap after Banana Peel.");
+            logMessage(target.playerName + " 因香蕉皮碰撞跳到格子 " + target.position);
         }
 
         // 同步 token 位置
@@ -142,8 +139,7 @@ public static class EventGridResolver
         PlayerData target = PickOneOpponent(currentPlayer, allPlayers);
         if (target == null)
         {
-            // logMessage(currentPlayer.playerName + " 触发临时聚餐，但没有可用的对手。");
-            logMessage(currentPlayer.playerName + " triggered Temp Dinner, but no opponent available.");
+            logMessage(currentPlayer.playerName + " 触发临时聚餐，但没有可用的对手。");
             return;
         }
 
@@ -151,15 +147,13 @@ public static class EventGridResolver
         int actualStolen = Mathf.Min(target.money, stealAmount);
         if (actualStolen <= 0)
         {
-            // logMessage(currentPlayer.playerName + " 与 " + target.playerName + " 临时聚餐，但对方没钱可拿。");
-            logMessage(currentPlayer.playerName + " had dinner with " + target.playerName + ", but they have no money.");
+            logMessage(currentPlayer.playerName + " 与 " + target.playerName + " 临时聚餐，但对方没钱可拿。");
             return;
         }
 
         changeMoney(target, -actualStolen);
         changeMoney(currentPlayer, actualStolen);
-        // logMessage(currentPlayer.playerName + " 与 " + target.playerName + " 临时聚餐，获得 " + actualStolen + " 金币。");
-        logMessage(currentPlayer.playerName + " had dinner with " + target.playerName + " and got " + actualStolen + " gold.");
+        logMessage(currentPlayer.playerName + " 与 " + target.playerName + " 临时聚餐，获得 " + actualStolen + " 金币。");
     }
 
     /// <summary>产业兼并：夺取对手一个1级产业；若没有，改为夺取10金币。 / Industry merger: steal level-1 building, or 10 gold.</summary>
@@ -174,8 +168,7 @@ public static class EventGridResolver
         PlayerData target = PickOneOpponent(currentPlayer, allPlayers);
         if (target == null)
         {
-            // logMessage(currentPlayer.playerName + " 触发产业兼并，但没有可用的对手。");
-            logMessage(currentPlayer.playerName + " triggered Industry Merger, but no opponent available.");
+            logMessage(currentPlayer.playerName + " 触发产业兼并，但没有可用的对手。");
             return;
         }
 
@@ -199,8 +192,7 @@ public static class EventGridResolver
                 currentPlayer.ownedGridIndexes.Add(level1Grid.GridIndex);
             }
 
-            // logMessage(currentPlayer.playerName + " 兼并了 " + target.playerName + " 的一个1级产业（格子 " + level1Grid.GridIndex + "）！");
-            logMessage(currentPlayer.playerName + " merged " + target.playerName + "'s level-1 building at grid " + level1Grid.GridIndex + "!");
+            logMessage(currentPlayer.playerName + " 兼并了 " + target.playerName + " 的一个1级产业（格子 " + level1Grid.GridIndex + "）！");
         }
         else
         {
@@ -209,15 +201,13 @@ public static class EventGridResolver
             int actualStolen = Mathf.Min(target.money, stealAmount);
             if (actualStolen <= 0)
             {
-                // logMessage(currentPlayer.playerName + " 触发产业兼并，但 " + target.playerName + " 既无1级产业也无金币。");
-                logMessage(currentPlayer.playerName + " triggered Industry Merger, but " + target.playerName + " has no building or gold.");
+                logMessage(currentPlayer.playerName + " 触发产业兼并，但 " + target.playerName + " 既无1级产业也无金币。");
                 return;
             }
 
             changeMoney(target, -actualStolen);
             changeMoney(currentPlayer, actualStolen);
-            // logMessage(currentPlayer.playerName + " 兼并未果，从 " + target.playerName + " 夺取 " + actualStolen + " 金币。");
-            logMessage(currentPlayer.playerName + " merger failed, stole " + actualStolen + " gold from " + target.playerName + " instead.");
+            logMessage(currentPlayer.playerName + " 兼并未果，从 " + target.playerName + " 夺取 " + actualStolen + " 金币。");
         }
     }
 
@@ -264,8 +254,7 @@ public static class EventGridResolver
         int oldPosition = currentPlayer.position;
         currentPlayer.position = (currentPlayer.position + 2) % boardSize;
 
-        // logMessage(currentPlayer.playerName + " 搭了顺风车，从格子 " + oldPosition + " 走到格子 " + currentPlayer.position);
-        logMessage(currentPlayer.playerName + " got a free ride from grid " + oldPosition + " to grid " + currentPlayer.position + ".");
+        logMessage(currentPlayer.playerName + " 搭了顺风车，从格子 " + oldPosition + " 走到格子 " + currentPlayer.position);
 
         // 顺风车后检查是否与其他玩家重叠，若重叠则向前跳格。
         int bumpGuard = 0;
@@ -275,7 +264,7 @@ public static class EventGridResolver
             currentPlayer.position = (currentPlayer.position + 1) % boardSize;
             bumpGuard++;
             overlaps = isPositionOccupied != null && isPositionOccupied(currentPlayer.position, currentPlayer);
-            logMessage(currentPlayer.playerName + " bumped to grid " + currentPlayer.position + " to avoid overlap after Free Ride.");
+            logMessage(currentPlayer.playerName + " 因顺风车碰撞跳到格子 " + currentPlayer.position);
         }
 
         // 移动角色（如果有 mover） / Move token if mover exists
@@ -301,8 +290,7 @@ public static class EventGridResolver
         Action<string> logMessage)
     {
         changeMoney(currentPlayer, 10);
-        // logMessage(currentPlayer.playerName + " 获得天使投资，获得10金币。");
-        logMessage(currentPlayer.playerName + " received angel funding: +10 gold.");
+        logMessage(currentPlayer.playerName + " 获得天使投资，获得10金币。");
     }
 
     /// <summary>经营得当：随机一个建筑升1级（不会3升4）。 / Good management: upgrade one random building by 1.</summary>
@@ -315,16 +303,14 @@ public static class EventGridResolver
         BoardGridView targetGrid = PickRandomOwnedUpgradableBuilding(currentPlayer, boardRegistry);
         if (targetGrid == null)
         {
-            // logMessage(currentPlayer.playerName + " 经营得当，但没有可升级的建筑。");
-            logMessage(currentPlayer.playerName + " managed well, but has no upgradable building.");
+            logMessage(currentPlayer.playerName + " 经营得当，但没有可升级的建筑。");
             return;
         }
 
         int oldLevel = targetGrid.RuntimeData.buildingData.level;
         targetGrid.UpgradeBuilding();
         int newLevel = targetGrid.RuntimeData.buildingData.level;
-        // logMessage(currentPlayer.playerName + " 的产业（格子 " + targetGrid.GridIndex + "）经营得当，从 " + oldLevel + " 级升到 " + newLevel + " 级。");
-        logMessage(currentPlayer.playerName + "'s building at grid " + targetGrid.GridIndex + " upgraded from Lv." + oldLevel + " to Lv." + newLevel + ".");
+        logMessage(currentPlayer.playerName + " 的产业（格子 " + targetGrid.GridIndex + "）经营得当，从 " + oldLevel + " 级升到 " + newLevel + " 级。");
     }
 
     // ==================== 倒霉事件 / Debuff Events ====================
@@ -363,14 +349,12 @@ public static class EventGridResolver
         int loseAmount = Mathf.Min(currentPlayer.money, 5);
         if (loseAmount <= 0)
         {
-            // logMessage(currentPlayer.playerName + " 遭遇小偷，但身无分文。");
-            logMessage(currentPlayer.playerName + " encountered a thief, but has no money.");
+            logMessage(currentPlayer.playerName + " 遭遇小偷，但身无分文。");
             return;
         }
 
         changeMoney(currentPlayer, -loseAmount);
-        // logMessage(currentPlayer.playerName + " 遭遇小偷，被偷去 " + loseAmount + " 金币。");
-        logMessage(currentPlayer.playerName + " was robbed by a thief: -" + loseAmount + " gold.");
+        logMessage(currentPlayer.playerName + " 遭遇小偷，被偷去 " + loseAmount + " 金币。");
     }
 
     /// <summary>经济危机：随机一个建筑降1级（不会1降到0，即不拆毁）。 / Economic crisis: downgrade one random building by 1.</summary>
@@ -383,16 +367,14 @@ public static class EventGridResolver
         BoardGridView targetGrid = PickRandomOwnedDowngradableBuilding(currentPlayer, boardRegistry);
         if (targetGrid == null)
         {
-            // logMessage(currentPlayer.playerName + " 遭遇经济危机，但没有可降级的建筑。");
-            logMessage(currentPlayer.playerName + " hit by economic crisis, but has no downgradable building.");
+            logMessage(currentPlayer.playerName + " 遭遇经济危机，但没有可降级的建筑。");
             return;
         }
 
         int oldLevel = targetGrid.RuntimeData.buildingData.level;
         targetGrid.RuntimeData.buildingData.level--;
         int newLevel = targetGrid.RuntimeData.buildingData.level;
-        // logMessage(currentPlayer.playerName + " 的产业（格子 " + targetGrid.GridIndex + "）遭遇经济危机，从 " + oldLevel + " 级降到 " + newLevel + " 级。");
-        logMessage(currentPlayer.playerName + "'s building at grid " + targetGrid.GridIndex + " downgraded from Lv." + oldLevel + " to Lv." + newLevel + ".");
+        logMessage(currentPlayer.playerName + " 的产业（格子 " + targetGrid.GridIndex + "）遭遇经济危机，从 " + oldLevel + " 级降到 " + newLevel + " 级。");
     }
 
     /// <summary>陨石打击：随机一个建筑被拆毁。 / Meteor strike: destroy one random building.</summary>
@@ -405,16 +387,14 @@ public static class EventGridResolver
         BoardGridView targetGrid = PickRandomOwnedBuilding(currentPlayer, boardRegistry);
         if (targetGrid == null)
         {
-            // logMessage(currentPlayer.playerName + " 有陨石落下，但你没有建筑被砸中。");
-            logMessage(currentPlayer.playerName + " saw a meteor fall, but no building was hit.");
+            logMessage(currentPlayer.playerName + " 有陨石落下，但你没有建筑被砸中。");
             return;
         }
 
         int gridIndex = targetGrid.GridIndex;
         currentPlayer.ownedGridIndexes.Remove(gridIndex);
         targetGrid.ResetNeutralState();
-        // logMessage(currentPlayer.playerName + " 的产业（格子 " + gridIndex + "）被陨石砸毁了！");
-        logMessage(currentPlayer.playerName + "'s building at grid " + gridIndex + " was destroyed by a meteor!");
+        logMessage(currentPlayer.playerName + " 的产业（格子 " + gridIndex + "）被陨石砸毁了！");
     }
 
     // ==================== 辅助方法 / Helper Methods ====================

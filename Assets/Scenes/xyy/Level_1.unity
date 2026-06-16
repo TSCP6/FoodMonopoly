@@ -687,7 +687,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &90230367
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -780,7 +780,7 @@ RectTransform:
   - {fileID: 636551983}
   - {fileID: 2086634935}
   m_Father: {fileID: 0}
-  m_RootOrder: 10
+  m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -2905,6 +2905,98 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3356751432537613521, guid: ffbddc4ef9676cc419e81e06aaa836d8, type: 3}
   m_PrefabInstance: {fileID: 621325593}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &627296558
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 627296561}
+  - component: {fileID: 627296560}
+  - component: {fileID: 627296559}
+  m_Layer: 0
+  m_Name: MonopolyHUD
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &627296559
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 627296558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0a1fe35a05666345a253b7c3a40bc00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hud: {fileID: 627296560}
+  turnStateMachine: {fileID: 2015579822}
+  boardRegistry: {fileID: 594313283}
+  bindOnAwake: 1
+--- !u!114 &627296560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 627296558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c5db592bb646be4a8f35eac61f18a4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stateMachine: {fileID: 0}
+  boardRegistry: {fileID: 0}
+  ui:
+    canvas: {fileID: 0}
+    canvasScaler: {fileID: 0}
+    raycaster: {fileID: 0}
+    statsPanel: {fileID: 0}
+    moneyText: {fileID: 0}
+    incomeText: {fileID: 0}
+    infoPanel: {fileID: 0}
+    infoText: {fileID: 0}
+    buildButton: {fileID: 0}
+    buildButtonText: {fileID: 0}
+    upgradeButton: {fileID: 0}
+    upgradeButtonText: {fileID: 0}
+    diceButton: {fileID: 0}
+    diceButtonText: {fileID: 0}
+  autoFindSceneObjects: 1
+  createRuntimeUI: 1
+  createBoardVisualizer: 1
+  createBoardClicker: 1
+  layoutSettings: {fileID: 0}
+  defaultBuildType: 0
+  enableKeyboardActionShortcuts: 0
+  fallbackMoney: 0
+  fallbackIncome: 0
+  OnActionClicked:
+    m_PersistentCalls:
+      m_Calls: []
+  OnUpgradeConfirmed:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!4 &627296561
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 627296558}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 10
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &636551979
 GameObject:
   m_ObjectHideFlags: 0
@@ -4781,7 +4873,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 11
+  m_RootOrder: 12
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &897649461
 GameObject:

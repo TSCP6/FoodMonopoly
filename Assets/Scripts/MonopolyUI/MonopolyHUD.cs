@@ -39,6 +39,7 @@ public class MonopolyHUD : MonoBehaviour
     private BoardGridView selectedUpgradeGrid;
     private bool upgradeMode;
     private bool subscribed;
+    private string pendingEventMessage;
 
     public bool IsUpgradeMode => upgradeMode;
     public TurnStateMachine BoundStateMachine => stateMachine;
@@ -438,6 +439,7 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnOptionalActionRequested += HandleOptionalActionRequested;
         stateMachine.OnStateChanged += HandleStateChanged;
         stateMachine.OnMessage += HandleMessage;
+        stateMachine.OnEventMessage += HandleEventMessage;
         subscribed = true;
     }
 
@@ -454,6 +456,7 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnOptionalActionRequested -= HandleOptionalActionRequested;
         stateMachine.OnStateChanged -= HandleStateChanged;
         stateMachine.OnMessage -= HandleMessage;
+        stateMachine.OnEventMessage -= HandleEventMessage;
         subscribed = false;
     }
 
@@ -523,6 +526,14 @@ public class MonopolyHUD : MonoBehaviour
             builder.AppendLine("当前没有可选建筑操作。");
         }
 
+        if (!string.IsNullOrEmpty(pendingEventMessage))
+        {
+            builder.AppendLine();
+            builder.AppendLine("--- 事件 ---");
+            builder.Append(pendingEventMessage);
+            pendingEventMessage = null;
+        }
+
         SetInfo(builder.ToString().TrimEnd());
     }
 
@@ -547,6 +558,11 @@ public class MonopolyHUD : MonoBehaviour
     private void HandleMessage(string message)
     {
         AddMessage(message);
+    }
+
+    private void HandleEventMessage(string message)
+    {
+        pendingEventMessage = message;
     }
 
     private void HandleBuildButtonClicked()
