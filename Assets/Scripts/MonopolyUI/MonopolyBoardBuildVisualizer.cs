@@ -11,12 +11,15 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
     [Header("Display")]
     [SerializeField] private bool showEmptyBuildingGrids = true;
+    [SerializeField] private bool showGridInfoLabels = true;
     [SerializeField] private bool showEmptyBuildingLabels = false;
     [SerializeField] private bool showEventGrids = true;
+    [SerializeField] private KeyCode toggleGridInfoLabelsKey = KeyCode.I;
     [SerializeField] private float markerHeight = 0.18f;
     [SerializeField] private float labelHeight = 1.1f;
-    [SerializeField] private float labelCharacterSize = 0.045f;
+    [SerializeField] private float labelCharacterSize = 0.035f;
     [SerializeField] private Vector3 labelBackScale = new Vector3(1.25f, 0.42f, 0.02f);
+    [SerializeField] private float buildingSideOffset = 1.1f;
     [SerializeField] private float refreshInterval = 0.15f;
 
     [Header("Building Prefabs")]
@@ -76,6 +79,11 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
     private void Update()
     {
+        if (toggleGridInfoLabelsKey != KeyCode.None && Input.GetKeyDown(toggleGridInfoLabelsKey))
+        {
+            SetGridInfoLabelsVisible(!showGridInfoLabels);
+        }
+
         if (Time.time < nextRefreshTime)
         {
             return;
@@ -114,6 +122,12 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         hud = targetHud;
         BuildPrefabLookup();
         RebuildVisuals();
+        RefreshNow();
+    }
+
+    public void SetGridInfoLabelsVisible(bool visible)
+    {
+        showGridInfoLabels = visible;
         RefreshNow();
     }
 
@@ -258,7 +272,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         // 建筑容器：预制体实例将挂在这个容器下
         GameObject buildingContainer = new GameObject("Building Container");
         buildingContainer.transform.SetParent(root.transform, false);
-        buildingContainer.transform.localPosition = Vector3.zero;
+        buildingContainer.transform.localPosition = GetBuildingLocalPosition(gridView);
         buildingContainer.transform.localRotation = Quaternion.identity;
 
         GameObject labelRoot = new GameObject("Label");
@@ -315,12 +329,13 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         }
 
         visual.root.transform.position = gridView.transform.position;
+        visual.buildingContainer.transform.localPosition = GetBuildingLocalPosition(gridView);
 
         if (gridView.IsEventGrid || grid.kind == GridKind.Event)
         {
             visual.SetVisible(showEventGrids);
             visual.SetBuildingVisible(false);
-            visual.SetLabelVisible(showEventGrids);
+            visual.SetLabelVisible(showGridInfoLabels && showEventGrids);
             visual.markerRenderer.sharedMaterial = eventMaterial;
             visual.label.text = "事件\n不可建";
             return;
@@ -344,7 +359,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         {
             visual.SetVisible(showEmptyBuildingGrids || canBuildHere);
             visual.SetBuildingVisible(false);
-            visual.SetLabelVisible(canBuildHere || showEmptyBuildingLabels);
+            visual.SetLabelVisible(showGridInfoLabels && (canBuildHere || showEmptyBuildingLabels));
             visual.markerRenderer.sharedMaterial = canBuildHere ? buildableMaterial : emptyMaterial;
             visual.label.text = canBuildHere
                 ? "可建\n1:12  2:20\n3:18  0跳过"
@@ -359,22 +374,19 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
         visual.SetVisible(true);
         visual.SetBuildingVisible(true);
-        visual.SetLabelVisible(true);
+        visual.SetLabelVisible(showGridInfoLabels);
         visual.markerRenderer.sharedMaterial = ownedByHuman ? playerMaterial : enemyMaterial;
         ApplyBuildingPrefab(visual, grid.buildingData);
-
-        // 根据归属给预制体 Renderer 着色
-        Material buildingMat = ownedByHuman ? playerMaterial : enemyMaterial;
-        ApplyBuildingMaterial(visual, buildingMat);
 
         int income = GridRules.GetTurnIncome(grid.buildingData);
         int passFee = GridRules.GetPassFee(grid.buildingData);
         int upgradeCost = grid.buildingData.IsMaxLevel ? 0 : GridRules.GetUpgradeCost(grid.buildingData.buildingType, grid.buildingData.level);
 
         string ownerText = ownedByHuman ? "玩家" : "敌人";
-        string upgradeText = grid.buildingData.IsMaxLevel ? "满" : "升" + upgradeCost;
-        visual.label.text = ownerText + " " + ShortBuildingName(grid.buildingData.buildingType) + " L" + grid.buildingData.level
-            + "\n" + upgradeText + " 收" + income + " 路" + passFee;
+        string upgradeText = grid.buildingData.IsMaxLevel ? "满级" : "升" + upgradeCost;
+        visual.label.text = ShortBuildingName(grid.buildingData.buildingType) + " L" + grid.buildingData.level
+            + "\n" + ownerText + " 收" + income + " 路" + passFee
+            + "\n" + upgradeText;
     }
 
     private void ApplyBuildingPrefab(GridVisual visual, BuildingData buildingData)
@@ -413,8 +425,8 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         instance.transform.localScale = Vector3.one;
         instance.SetActive(true);
 
-        // 收集所有 Renderer，根据归属着色
-        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        // 收集所有 Renderer，保留 prefab 自带材质，避免覆盖原贴图和多材质槽。
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
         if (renderers != null && renderers.Length > 0)
         {
             visual.buildingRenderers = renderers;
@@ -424,20 +436,53 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         visual.currentPrefabKey = key;
     }
 
-    private void ApplyBuildingMaterial(GridVisual visual, Material material)
+    private Vector3 GetBuildingLocalPosition(BoardGridView gridView)
     {
-        if (visual.buildingRenderers == null || material == null)
+        if (gridView == null || buildingSideOffset <= 0f)
         {
-            return;
+            return Vector3.zero;
         }
 
-        for (int i = 0; i < visual.buildingRenderers.Length; i++)
+        Vector3 boardCenter = GetBoardCenter();
+        Vector3 outward = gridView.transform.position - boardCenter;
+        outward.y = 0f;
+
+        if (outward.sqrMagnitude < 0.0001f)
         {
-            if (visual.buildingRenderers[i] != null)
-            {
-                visual.buildingRenderers[i].sharedMaterial = material;
-            }
+            outward = gridView.transform.forward;
+            outward.y = 0f;
         }
+
+        if (outward.sqrMagnitude < 0.0001f)
+        {
+            outward = Vector3.forward;
+        }
+
+        return outward.normalized * buildingSideOffset;
+    }
+
+    private Vector3 GetBoardCenter()
+    {
+        if (boardRegistry == null || boardRegistry.Count == 0)
+        {
+            return transform.position;
+        }
+
+        Vector3 sum = Vector3.zero;
+        int validCount = 0;
+        for (int i = 0; i < boardRegistry.Count; i++)
+        {
+            BoardGridView view = boardRegistry.GetView(i);
+            if (view == null)
+            {
+                continue;
+            }
+
+            sum += view.transform.position;
+            validCount++;
+        }
+
+        return validCount > 0 ? sum / validCount : transform.position;
     }
 
     private PlayerData GetCurrentPlayer()
@@ -510,11 +555,11 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     private void CreateMaterials()
     {
         buildableMaterial = CreateTransparentMaterial("Buildable Grid", new Color(0.2f, 1f, 0.35f, 0.58f));
-        playerMaterial = CreateTransparentMaterial("Player Building", new Color(0.25f, 0.55f, 1f, 0.78f));
-        enemyMaterial = CreateTransparentMaterial("Enemy Building", new Color(1f, 0.25f, 0.2f, 0.78f));
+        playerMaterial = CreateTransparentMaterial("Player Building Marker", new Color(0.25f, 0.55f, 1f, 0.78f));
+        enemyMaterial = CreateTransparentMaterial("Enemy Building Marker", new Color(1f, 0.25f, 0.2f, 0.78f));
         emptyMaterial = CreateTransparentMaterial("Empty Building Grid", new Color(0.82f, 0.82f, 0.82f, 0.32f));
         eventMaterial = CreateTransparentMaterial("Event Grid", new Color(1f, 0.85f, 0.2f, 0.42f));
-        textBackMaterial = CreateTransparentMaterial("Label Back", new Color(1f, 1f, 1f, 0.72f));
+        textBackMaterial = CreateTransparentMaterial("Label Back", new Color(1f, 0.86f, 0.12f, 0.38f));
     }
 
     private Material CreateTransparentMaterial(string materialName, Color color)

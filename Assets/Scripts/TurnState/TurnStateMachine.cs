@@ -7,6 +7,8 @@ using UnityEngine;
 // 地图已经由场景里的 36 个 cube 搭好，所以这里直接读取 BoardGridRegistry 的格子。
 public class TurnStateMachine : MonoBehaviour
 {
+    public event Action<PlayerData, int> OnDiceRolled;
+
     [Header("Board")]
     [SerializeField] private BoardGridRegistry boardGridRegistry; //地图登记信息
 
@@ -317,6 +319,7 @@ public class TurnStateMachine : MonoBehaviour
 
         LogMessage(player.playerName + " 掷出了 " + LastDiceValue);
 
+        OnDiceRolled?.Invoke(player, LastDiceValue);
         isBusy = false;
         EnterState(TurnState.Move);
     }

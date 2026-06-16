@@ -193,13 +193,6 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
-        if (!upgradeMode)
-        {
-            selectedUpgradeGrid = null;
-            SetInfo(BuildGridInfo(gridView, false));
-            return;
-        }
-
         if (selectedUpgradeGrid == gridView && CanUpgradeGrid(gridView, out string blockedReason))
         {
             if (TryUpgradeGrid(gridView))
@@ -212,11 +205,16 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
-        selectedUpgradeGrid = gridView;
-        string info = BuildGridInfo(gridView, true);
-        if (!CanUpgradeGrid(gridView, out blockedReason))
+        bool canUpgradeSelectedGrid = CanUpgradeGrid(gridView, out blockedReason);
+        selectedUpgradeGrid = canUpgradeSelectedGrid ? gridView : null;
+
+        string info = BuildGridInfo(gridView, canUpgradeSelectedGrid || upgradeMode);
+        if (!canUpgradeSelectedGrid)
         {
-            info += "\n" + blockedReason;
+            if (upgradeMode)
+            {
+                info += "\n" + blockedReason;
+            }
         }
         else
         {
@@ -225,7 +223,6 @@ public class MonopolyHUD : MonoBehaviour
 
         SetInfo(info);
     }
-
     public bool TryBuildChainRestaurant()
     {
         return TryBuildOnCurrentGrid(BuildingType.ChainRestaurant);
