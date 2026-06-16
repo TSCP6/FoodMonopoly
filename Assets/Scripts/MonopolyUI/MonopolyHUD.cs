@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
@@ -43,6 +44,7 @@ public class MonopolyHUD : MonoBehaviour
     private bool upgradeMode;
     private bool subscribed;
     private string pendingEventMessage;
+    private Coroutine diceResultRoutine;
 
     public bool IsUpgradeMode => upgradeMode;
     public TurnStateMachine BoundStateMachine => stateMachine;
@@ -193,6 +195,13 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
+        if (!upgradeMode)
+        {
+            selectedUpgradeGrid = null;
+            SetInfo(BuildGridInfo(gridView, false));
+            return;
+        }
+
         if (selectedUpgradeGrid == gridView && CanUpgradeGrid(gridView, out string blockedReason))
         {
             if (TryUpgradeGrid(gridView))
@@ -205,16 +214,11 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
-        bool canUpgradeSelectedGrid = CanUpgradeGrid(gridView, out blockedReason);
-        selectedUpgradeGrid = canUpgradeSelectedGrid ? gridView : null;
-
-        string info = BuildGridInfo(gridView, canUpgradeSelectedGrid || upgradeMode);
-        if (!canUpgradeSelectedGrid)
+        selectedUpgradeGrid = gridView;
+        string info = BuildGridInfo(gridView, true);
+        if (!CanUpgradeGrid(gridView, out blockedReason))
         {
-            if (upgradeMode)
-            {
-                info += "\n" + blockedReason;
-            }
+            info += "\n" + blockedReason;
         }
         else
         {
@@ -223,6 +227,7 @@ public class MonopolyHUD : MonoBehaviour
 
         SetInfo(info);
     }
+
     public bool TryBuildChainRestaurant()
     {
         return TryBuildOnCurrentGrid(BuildingType.ChainRestaurant);
@@ -392,6 +397,7 @@ public class MonopolyHUD : MonoBehaviour
         SetRaycastTarget(ui.statsPanel, false);
         SetRaycastTarget(ui.infoPanel, false);
         SetRaycastTarget(ui.moneyText, false);
+        SetRaycastTarget(ui.turnText, false);
         SetRaycastTarget(ui.incomeText, false);
         SetRaycastTarget(ui.infoText, false);
         SetButtonRaycastTarget(ui.buildButton, true);
@@ -442,7 +448,9 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnMoneyChanged += HandleMoneyChanged;
         stateMachine.OnGridResolved += HandleGridResolved;
         stateMachine.OnOptionalActionRequested += HandleOptionalActionRequested;
+        stateMachine.OnDiceRolled += HandleDiceRolled;
         stateMachine.OnStateChanged += HandleStateChanged;
+        stateMachine.OnLevelChanged += HandleLevelChanged;
         stateMachine.OnMessage += HandleMessage;
         stateMachine.OnEventMessage += HandleEventMessage;
         subscribed = true;
@@ -459,7 +467,9 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnMoneyChanged -= HandleMoneyChanged;
         stateMachine.OnGridResolved -= HandleGridResolved;
         stateMachine.OnOptionalActionRequested -= HandleOptionalActionRequested;
+        stateMachine.OnDiceRolled -= HandleDiceRolled;
         stateMachine.OnStateChanged -= HandleStateChanged;
+        stateMachine.OnLevelChanged -= HandleLevelChanged;
         stateMachine.OnMessage -= HandleMessage;
         stateMachine.OnEventMessage -= HandleEventMessage;
         subscribed = false;
@@ -543,6 +553,8 @@ public class MonopolyHUD : MonoBehaviour
 
     private void HandleStateChanged(TurnState state)
     {
+        RefreshStats();
+
         if (state == TurnState.GameOver)
         {
             SetButtonInteractable(ui.buildButton, false);
@@ -559,6 +571,11 @@ public class MonopolyHUD : MonoBehaviour
         RefreshBoardVisuals();
     }
 
+    private void HandleLevelChanged(int levelIndex)
+    {
+        RefreshStats();
+    }
+
     private void HandleMessage(string message)
     {
         AddMessage(message);
@@ -567,6 +584,30 @@ public class MonopolyHUD : MonoBehaviour
     private void HandleEventMessage(string message)
     {
         pendingEventMessage = message;
+    }
+
+    private void HandleDiceRolled(PlayerData player, int value)
+    {
+        if (diceResultRoutine != null)
+        {
+            StopCoroutine(diceResultRoutine);
+        }
+
+        diceResultRoutine = StartCoroutine(ShowDiceResultRoutine(value));
+    }
+
+    private IEnumerator ShowDiceResultRoutine(int value)
+    {
+        if (ui.diceButtonText == null)
+        {
+            yield break;
+        }
+
+        string previousText = ui.diceButtonText.text;
+        ui.diceButtonText.text = "\u9AB0\u5B50\uFF1A" + value;
+        yield return new WaitForSeconds(1f);
+        ui.diceButtonText.text = previousText;
+        diceResultRoutine = null;
     }
 
     private void HandleBuildButtonClicked()
@@ -655,15 +696,27 @@ public class MonopolyHUD : MonoBehaviour
         PlayerData player = GetActionPlayer();
         int money = player == null ? fallbackMoney : player.money;
         int income = player == null ? fallbackIncome : CalculateCurrentPlayerIncome(player);
+        int currentTurn = stateMachine == null ? 0 : stateMachine.CurrentTurnInLevel;
+        int turnsPerLevel = stateMachine == null ? 0 : stateMachine.TurnsPerLevel;
+        int displayTurn = turnsPerLevel > 0
+            ? Mathf.Clamp(currentTurn + 1, 1, turnsPerLevel)
+            : currentTurn + 1;
 
         if (ui.moneyText != null)
         {
-            ui.moneyText.text = "金钱：" + money;
+            ui.moneyText.text = "\u91D1\u94B1\uFF1A" + money;
+        }
+
+        if (ui.turnText != null)
+        {
+            ui.turnText.text = turnsPerLevel > 0
+                ? "\u56DE\u5408\uFF1A" + displayTurn + "/" + turnsPerLevel
+                : "\u56DE\u5408\uFF1A" + displayTurn;
         }
 
         if (ui.incomeText != null)
         {
-            ui.incomeText.text = "每回合收入：" + income;
+            ui.incomeText.text = "\u6BCF\u56DE\u5408\u6536\u5165\uFF1A" + income;
         }
     }
 

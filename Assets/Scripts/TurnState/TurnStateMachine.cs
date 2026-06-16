@@ -28,6 +28,7 @@ public class TurnStateMachine : MonoBehaviour
     public int CurrentTurnInLevel { get; private set; } //当前关卡的回合数
     public int CurrentPlayerIndex { get; private set; } //当前玩家索引
     public int LastDiceValue { get; private set; } //上次掷的骰子点数
+    public int TurnsPerLevel => settings != null ? settings.turnsPerLevel : 0;
 
     public event Action<TurnState> OnStateChanged; //状态改变事件
     public event Action<int> OnLevelChanged; //关卡改变事件

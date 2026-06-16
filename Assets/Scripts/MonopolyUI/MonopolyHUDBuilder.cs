@@ -33,6 +33,7 @@ public static class MonopolyHUDBuilder
 
         references.statsPanel = CreatePanel(root.transform, "Stats Panel", settings.statsPanel, settings.panelColor, settings);
         references.moneyText = CreateText(references.statsPanel, "Money Text", settings.moneyText, settings);
+        references.turnText = CreateText(references.statsPanel, "Turn Text", settings.turnText, settings);
         references.incomeText = CreateText(references.statsPanel, "Income Text", settings.incomeText, settings);
 
         references.infoPanel = CreatePanel(root.transform, "Info Panel", settings.infoPanel, settings.panelColor, settings);

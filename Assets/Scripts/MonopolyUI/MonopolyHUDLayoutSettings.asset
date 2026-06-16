@@ -28,7 +28,7 @@ MonoBehaviour:
     anchorMax: {x: 0, y: 1}
     pivot: {x: 0, y: 1}
     anchoredPosition: {x: 36, y: -36}
-    sizeDelta: {x: 470, y: 118}
+    sizeDelta: {x: 470, y: 156}
   infoPanel:
     anchorMin: {x: 0, y: 0}
     anchorMax: {x: 0, y: 0}
@@ -61,6 +61,15 @@ MonoBehaviour:
       left: 32
       right: 24
       top: 18
+      bottom: 98
+  turnText:
+    defaultText: "\u56DE\u5408\uFF1A0/0"
+    fontSize: 32
+    alignment: 0
+    padding:
+      left: 32
+      right: 24
+      top: 58
       bottom: 58
   incomeText:
     defaultText: "\u6BCF\u56DE\u5408\u6536\u5165\uFF1A0"
@@ -69,7 +78,7 @@ MonoBehaviour:
     padding:
       left: 32
       right: 24
-      top: 58
+      top: 98
       bottom: 18
   infoText:
     defaultText: "\u4FE1\u606F\u680F"

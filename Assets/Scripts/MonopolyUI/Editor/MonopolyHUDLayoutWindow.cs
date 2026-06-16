@@ -75,6 +75,7 @@ public class MonopolyHUDLayoutWindow : EditorWindow
         DrawSection("Colors", "panelColor", "buttonColor", "buttonHighlightColor", "buttonPressedColor", "buttonDisabledColor", "textColor", "outlineColor", "outlineDistance");
         DrawLayoutSection("Stats Panel", "statsPanel");
         DrawTextSection("Money Text", "moneyText");
+        DrawTextSection("Turn Text", "turnText");
         DrawTextSection("Income Text", "incomeText");
         DrawLayoutSection("Info Panel", "infoPanel");
         DrawTextSection("Info Text", "infoText");
