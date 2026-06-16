@@ -421,8 +421,6 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         GameObject instance = Instantiate(prefab, visual.buildingContainer.transform);
         instance.name = $"Building_{buildingData.buildingType}_Lv{buildingData.level}";
         instance.transform.localPosition = new Vector3(0f, 0.5f, 0f);
-        instance.transform.localRotation = Quaternion.identity;
-        instance.transform.localScale = Vector3.one;
         instance.SetActive(true);
 
         // 收集所有 Renderer，保留 prefab 自带材质，避免覆盖原贴图和多材质槽。

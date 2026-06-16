@@ -1320,12 +1320,15 @@ MonoBehaviour:
   boardRegistry: {fileID: 594313283}
   hud: {fileID: 627296560}
   showEmptyBuildingGrids: 1
+  showGridInfoLabels: 1
   showEmptyBuildingLabels: 0
   showEventGrids: 1
+  toggleGridInfoLabelsKey: 105
   markerHeight: 0.18
   labelHeight: 1.1
   labelCharacterSize: 0.045
   labelBackScale: {x: 1.25, y: 0.42, z: 0.02}
+  buildingSideOffset: 1.1
   refreshInterval: 0.15
   buildingPrefabs:
   - buildingType: 0
@@ -6309,7 +6312,7 @@ MonoBehaviour:
   createRuntimeUI: 1
   createBoardVisualizer: 1
   createBoardClicker: 1
-  layoutSettings: {fileID: 0}
+  layoutSettings: {fileID: 11400000, guid: d8222d1d879087549870ee46e910bd7c, type: 2}
   visualizerTemplate: {fileID: 99641997}
   defaultBuildType: 0
   enableKeyboardActionShortcuts: 0
@@ -9844,6 +9847,10 @@ MonoBehaviour:
   fixedY: 0.52
   useJumpMove: 1
   jumpHeight: 0.35
+  faceMoveDirection: 1
+  visualRoot: {fileID: 0}
+  turnSpeed: 12
+  modelYawOffset: 0
 --- !u!1 &864219401
 GameObject:
   m_ObjectHideFlags: 0
@@ -17140,6 +17147,10 @@ MonoBehaviour:
   fixedY: 0.52
   useJumpMove: 1
   jumpHeight: 0.35
+  faceMoveDirection: 1
+  visualRoot: {fileID: 0}
+  turnSpeed: 12
+  modelYawOffset: 0
 --- !u!1 &1623650719
 GameObject:
   m_ObjectHideFlags: 0
@@ -21142,7 +21153,7 @@ MonoBehaviour:
   diceRoller: {fileID: 0}
   playerMovers: []
   settings:
-    turnsPerLevel: 30
+    turnsPerLevel: 20
     levelCount: 2
     initialMoney: 50
     carryMoneyBetweenLevels: 0
