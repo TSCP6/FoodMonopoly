@@ -20,6 +20,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     [SerializeField] private float labelCharacterSize = 0.035f;
     [SerializeField] private Vector3 labelBackScale = new Vector3(1.25f, 0.42f, 0.02f);
     [SerializeField] private float buildingSideOffset = 1.1f;
+    [SerializeField] private bool snapBuildingOffsetToFourDirections = true;
     [SerializeField] private float refreshInterval = 0.15f;
 
     [Header("Building Prefabs")]
@@ -35,10 +36,15 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     private Material enemyMaterial;
     private Material emptyMaterial;
     private Material eventMaterial;
+    private Material hoverMaterial;
     private Material textBackMaterial;
+    private Material selectedLabelBackMaterial;
 
     private float nextRefreshTime;
     private Camera mainCamera;
+    private BoardGridView hoveredGrid;
+
+    public BoardGridView HoveredGrid => hoveredGrid;
 
     [Serializable]
     public class BuildingPrefabEntry
@@ -128,6 +134,17 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
     public void SetGridInfoLabelsVisible(bool visible)
     {
         showGridInfoLabels = visible;
+        RefreshNow();
+    }
+
+    public void SetHoveredGrid(BoardGridView gridView)
+    {
+        if (hoveredGrid == gridView)
+        {
+            return;
+        }
+
+        hoveredGrid = gridView;
         RefreshNow();
     }
 
@@ -330,13 +347,16 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
         visual.root.transform.position = gridView.transform.position;
         visual.buildingContainer.transform.localPosition = GetBuildingLocalPosition(gridView);
+        bool isHovered = hoveredGrid == gridView;
 
         if (gridView.IsEventGrid || grid.kind == GridKind.Event)
         {
             visual.SetVisible(showEventGrids);
             visual.SetBuildingVisible(false);
             visual.SetLabelVisible(showGridInfoLabels && showEventGrids);
-            visual.markerRenderer.sharedMaterial = eventMaterial;
+            visual.markerRenderer.sharedMaterial = isHovered ? hoverMaterial : eventMaterial;
+            visual.SetLabelBackMaterial(isHovered ? selectedLabelBackMaterial : textBackMaterial);
+            visual.ApplyHoverMaterial(false, hoverMaterial);
             visual.label.text = "事件\n不可建";
             return;
         }
@@ -360,7 +380,9 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             visual.SetVisible(showEmptyBuildingGrids || canBuildHere);
             visual.SetBuildingVisible(false);
             visual.SetLabelVisible(showGridInfoLabels && (canBuildHere || showEmptyBuildingLabels));
-            visual.markerRenderer.sharedMaterial = canBuildHere ? buildableMaterial : emptyMaterial;
+            visual.markerRenderer.sharedMaterial = isHovered ? hoverMaterial : canBuildHere ? buildableMaterial : emptyMaterial;
+            visual.SetLabelBackMaterial(isHovered ? selectedLabelBackMaterial : textBackMaterial);
+            visual.ApplyHoverMaterial(false, hoverMaterial);
             visual.label.text = canBuildHere
                 ? "可建\n1:12  2:20\n3:18  0跳过"
                 : "建筑格\n不可建";
@@ -375,15 +397,17 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         visual.SetVisible(true);
         visual.SetBuildingVisible(true);
         visual.SetLabelVisible(showGridInfoLabels);
-        visual.markerRenderer.sharedMaterial = ownedByHuman ? playerMaterial : enemyMaterial;
-        ApplyBuildingPrefab(visual, grid.buildingData);
+        visual.markerRenderer.sharedMaterial = isHovered ? hoverMaterial : ownedByHuman ? playerMaterial : enemyMaterial;
+        visual.SetLabelBackMaterial(isHovered ? selectedLabelBackMaterial : textBackMaterial);
+        ApplyBuildingPrefab(visual, gridView, grid.buildingData);
+        visual.ApplyHoverMaterial(isHovered, hoverMaterial);
 
         string ownerText = ownedByHuman ? "\u73A9\u5BB6" : "\u654C\u4EBA";
         visual.label.text = ShortBuildingName(grid.buildingData.buildingType) + " L" + grid.buildingData.level
             + "\n" + ownerText;
     }
 
-    private void ApplyBuildingPrefab(GridVisual visual, BuildingData buildingData)
+    private void ApplyBuildingPrefab(GridVisual visual, BoardGridView gridView, BuildingData buildingData)
     {
         if (buildingData == null)
         {
@@ -416,12 +440,14 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         instance.name = $"Building_{buildingData.buildingType}_Lv{buildingData.level}";
         instance.transform.localPosition = new Vector3(0f, 0.5f, 0f);
         instance.SetActive(true);
+        PrepareBuildingClickTarget(instance, gridView);
 
         // 收集所有 Renderer，保留 prefab 自带材质，避免覆盖原贴图和多材质槽。
         Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
         if (renderers != null && renderers.Length > 0)
         {
             visual.buildingRenderers = renderers;
+            visual.CacheOriginalMaterials();
         }
 
         visual.buildingInstance = instance;
@@ -450,7 +476,70 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             outward = Vector3.forward;
         }
 
-        return outward.normalized * buildingSideOffset;
+        if (snapBuildingOffsetToFourDirections)
+        {
+            outward = Mathf.Abs(outward.x) >= Mathf.Abs(outward.z)
+                ? new Vector3(Mathf.Sign(outward.x), 0f, 0f)
+                : new Vector3(0f, 0f, Mathf.Sign(outward.z));
+        }
+        else
+        {
+            outward.Normalize();
+        }
+
+        return outward * buildingSideOffset;
+    }
+
+    private void PrepareBuildingClickTarget(GameObject instance, BoardGridView gridView)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        MonopolyBuildingClickTarget clickTarget = instance.GetComponent<MonopolyBuildingClickTarget>();
+        if (clickTarget == null)
+        {
+            clickTarget = instance.AddComponent<MonopolyBuildingClickTarget>();
+        }
+
+        clickTarget.Bind(gridView);
+
+        Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
+        bool hasEnabledCollider = false;
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled = true;
+                hasEnabledCollider = true;
+            }
+        }
+
+        if (!hasEnabledCollider)
+        {
+            Bounds bounds = CalculateRendererBounds(instance);
+            BoxCollider collider = instance.AddComponent<BoxCollider>();
+            collider.center = instance.transform.InverseTransformPoint(bounds.center);
+            collider.size = instance.transform.InverseTransformVector(bounds.size);
+        }
+    }
+
+    private Bounds CalculateRendererBounds(GameObject instance)
+    {
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0)
+        {
+            return new Bounds(instance.transform.position, Vector3.one);
+        }
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        return bounds;
     }
 
     private Vector3 GetBoardCenter()
@@ -551,7 +640,30 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         enemyMaterial = CreateTransparentMaterial("Enemy Building Marker", new Color(1f, 0.25f, 0.2f, 0.78f));
         emptyMaterial = CreateTransparentMaterial("Empty Building Grid", new Color(0.82f, 0.82f, 0.82f, 0.32f));
         eventMaterial = CreateTransparentMaterial("Event Grid", new Color(1f, 0.85f, 0.2f, 0.42f));
-        textBackMaterial = CreateTransparentMaterial("Label Back", new Color(1f, 0.86f, 0.12f, 0.38f));
+        hoverMaterial = CreateTransparentMaterial("Hovered Building", new Color(1f, 1f, 1f, 0.58f));
+        textBackMaterial = CreateSimpleTransparentMaterial("Label Back", new Color(1f, 1f, 1f, 0.72f));
+        selectedLabelBackMaterial = CreateSimpleTransparentMaterial("Selected Label Back", new Color(1f, 0.92f, 0.05f, 0.86f));
+    }
+
+    private Material CreateSimpleTransparentMaterial(string materialName, Color color)
+    {
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null)
+        {
+            shader = Shader.Find("Sprites/Default");
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Standard");
+        }
+
+        Material material = new Material(shader);
+        material.name = materialName;
+        ApplyMaterialColor(material, color);
+        ConfigureTransparentMaterial(material);
+        runtimeMaterials.Add(material);
+        return material;
     }
 
     private Material CreateTransparentMaterial(string materialName, Color color)
@@ -574,7 +686,38 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
 
         Material material = new Material(shader);
         material.name = materialName;
+        ApplyMaterialColor(material, color);
+        ConfigureTransparentMaterial(material);
+        runtimeMaterials.Add(material);
+        return material;
+    }
+
+    private void ApplyMaterialColor(Material material, Color color)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
         material.color = color;
+
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", color);
+        }
+
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+    }
+
+    private void ConfigureTransparentMaterial(Material material)
+    {
+        if (material == null)
+        {
+            return;
+        }
 
         if (material.HasProperty("_Surface"))
         {
@@ -610,8 +753,6 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         material.EnableKeyword("_ALPHABLEND_ON");
         material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
         material.renderQueue = 3000;
-        runtimeMaterials.Add(material);
-        return material;
     }
 
     private void ClearVisuals()
@@ -643,6 +784,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
         public GameObject buildingInstance;
         /// <summary>建筑预制体上的 Renderer 组件（用于着色）</summary>
         public Renderer[] buildingRenderers;
+        public Material[][] originalMaterials;
         /// <summary>当前实例的预制体标识，用于判断是否需要切换</summary>
         public (BuildingType, int)? currentPrefabKey;
         public GameObject labelRoot;
@@ -673,6 +815,82 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             }
         }
 
+        public void SetLabelBackMaterial(Material material)
+        {
+            if (labelBack == null || material == null)
+            {
+                return;
+            }
+
+            Renderer renderer = labelBack.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != material)
+            {
+                renderer.sharedMaterial = material;
+            }
+        }
+
+        public void CacheOriginalMaterials()
+        {
+            if (buildingRenderers == null)
+            {
+                originalMaterials = null;
+                return;
+            }
+
+            originalMaterials = new Material[buildingRenderers.Length][];
+            for (int i = 0; i < buildingRenderers.Length; i++)
+            {
+                originalMaterials[i] = buildingRenderers[i] == null ? null : buildingRenderers[i].sharedMaterials;
+            }
+        }
+
+        public void ApplyHoverMaterial(bool hovered, Material hoverMaterial)
+        {
+            if (buildingRenderers == null)
+            {
+                return;
+            }
+
+            if (originalMaterials == null || originalMaterials.Length != buildingRenderers.Length)
+            {
+                CacheOriginalMaterials();
+            }
+
+            for (int i = 0; i < buildingRenderers.Length; i++)
+            {
+                Renderer renderer = buildingRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                if (!hovered)
+                {
+                    if (originalMaterials != null && i < originalMaterials.Length && originalMaterials[i] != null)
+                    {
+                        renderer.sharedMaterials = originalMaterials[i];
+                    }
+
+                    continue;
+                }
+
+                Material[] currentMaterials = renderer.sharedMaterials;
+                if (currentMaterials == null || currentMaterials.Length == 0)
+                {
+                    renderer.sharedMaterial = hoverMaterial;
+                    continue;
+                }
+
+                Material[] hoverMaterials = new Material[currentMaterials.Length];
+                for (int j = 0; j < hoverMaterials.Length; j++)
+                {
+                    hoverMaterials[j] = hoverMaterial;
+                }
+
+                renderer.sharedMaterials = hoverMaterials;
+            }
+        }
+
         public void DestroyBuildingInstance()
         {
             if (buildingInstance != null)
@@ -682,6 +900,7 @@ public class MonopolyBoardBuildVisualizer : MonoBehaviour
             }
 
             buildingRenderers = null;
+            originalMaterials = null;
             currentPrefabKey = null;
         }
     }

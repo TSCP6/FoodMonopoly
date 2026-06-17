@@ -8,6 +8,11 @@ public class BoardGridInfoClicker : MonoBehaviour
     [SerializeField] private LayerMask clickableLayers = ~0;
     [SerializeField] private float maxDistance = 1000f;
     [SerializeField] private bool ignoreClicksOverUI = true;
+    [SerializeField] private float hoverConfirmDelay = 0.2f;
+
+    private BoardGridView candidateHoverGrid;
+    private BoardGridView hoveredGrid;
+    private float candidateHoverStartTime;
 
     private void Awake()
     {
@@ -32,16 +37,6 @@ public class BoardGridInfoClicker : MonoBehaviour
 
     private void Update()
     {
-        if (!Input.GetMouseButtonDown(0))
-        {
-            return;
-        }
-
-        if (ignoreClicksOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-        {
-            return;
-        }
-
         ResolveReferences();
 
         if (targetCamera == null || hud == null)
@@ -49,17 +44,93 @@ public class BoardGridInfoClicker : MonoBehaviour
             return;
         }
 
-        Ray ray = targetCamera.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out RaycastHit hit, maxDistance, clickableLayers, QueryTriggerInteraction.Collide))
+        bool pointerOverUI = ignoreClicksOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        BoardGridView gridView = null;
+        if (!pointerOverUI)
+        {
+            TryGetGridUnderMouse(out gridView);
+        }
+
+        UpdateHoverTarget(gridView);
+
+        if (!Input.GetMouseButtonDown(0) || pointerOverUI || gridView == null)
         {
             return;
         }
 
-        BoardGridView gridView = hit.collider.GetComponentInParent<BoardGridView>();
-        if (gridView != null)
+        hud.HandleBoardGridClicked(gridView);
+    }
+
+    private void UpdateHoverTarget(BoardGridView gridView)
+    {
+        if (candidateHoverGrid != gridView)
         {
-            hud.HandleBoardGridClicked(gridView);
+            candidateHoverGrid = gridView;
+            candidateHoverStartTime = Time.unscaledTime;
+
+            if (gridView == null && hoveredGrid != null)
+            {
+                hoveredGrid = null;
+                hud.HandleBoardGridHovered(null);
+            }
+
+            return;
         }
+
+        if (hoveredGrid == gridView)
+        {
+            return;
+        }
+
+        if (gridView == null)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - candidateHoverStartTime < hoverConfirmDelay)
+        {
+            return;
+        }
+
+        hoveredGrid = gridView;
+        hud.HandleBoardGridHovered(hoveredGrid);
+    }
+
+    private bool TryGetGridUnderMouse(out BoardGridView gridView)
+    {
+        gridView = null;
+
+        Ray ray = targetCamera.ScreenPointToRay(Input.mousePosition);
+        RaycastHit[] hits = Physics.RaycastAll(ray, maxDistance, clickableLayers, QueryTriggerInteraction.Collide);
+        if (hits == null || hits.Length == 0)
+        {
+            return false;
+        }
+
+        System.Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i].collider == null)
+            {
+                continue;
+            }
+
+            MonopolyBuildingClickTarget buildingTarget = hits[i].collider.GetComponentInParent<MonopolyBuildingClickTarget>();
+            if (buildingTarget != null && buildingTarget.GridView != null)
+            {
+                gridView = buildingTarget.GridView;
+                return true;
+            }
+
+            BoardGridView candidate = hits[i].collider.GetComponentInParent<BoardGridView>();
+            if (candidate != null)
+            {
+                gridView = candidate;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void ResolveReferences()

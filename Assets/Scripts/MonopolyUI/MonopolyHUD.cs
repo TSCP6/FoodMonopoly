@@ -47,6 +47,7 @@ public class MonopolyHUD : MonoBehaviour
     private bool subscribed;
     private string pendingEventMessage;
     private Coroutine diceResultRoutine;
+    private GameObject resultOverlay;
 
     public bool IsUpgradeMode => upgradeMode;
     public TurnStateMachine BoundStateMachine => stateMachine;
@@ -54,6 +55,7 @@ public class MonopolyHUD : MonoBehaviour
     public MonopolyHUDReferences References => ui;
     public PlayerData CurrentPlayer => currentPlayer;
     public OptionalActionContext LastOptionalContext => lastOptionalContext;
+    public BoardGridView HoveredGrid => boardVisualizer == null ? null : boardVisualizer.HoveredGrid;
 
     private void Awake()
     {
@@ -186,7 +188,7 @@ public class MonopolyHUD : MonoBehaviour
         upgradeMode = true;
         selectedUpgradeGrid = null;
         OnActionClicked.Invoke(MonopolyUIActionType.EnterUpgradeMode);
-        SetInfo("升级模式\n点击己方任意建筑查看升级费用和效果。\n再次点击同一建筑确认升级。");
+        SetInfo("升级模式\n鼠标悬浮到建筑上会高亮。\n点击己方可升级建筑即可升级。");
         RefreshBoardVisuals();
     }
 
@@ -195,6 +197,19 @@ public class MonopolyHUD : MonoBehaviour
         upgradeMode = false;
         selectedUpgradeGrid = null;
         RefreshBoardVisuals();
+    }
+
+    public void HandleBoardGridHovered(BoardGridView gridView)
+    {
+        if (boardVisualizer != null)
+        {
+            boardVisualizer.SetHoveredGrid(gridView);
+        }
+
+        if (gridView != null && gridView.RuntimeData != null)
+        {
+            SetInfo(BuildGridInfo(gridView, true));
+        }
     }
 
     public void HandleBoardGridClicked(BoardGridView gridView)
@@ -211,7 +226,8 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
-        if (selectedUpgradeGrid == gridView && CanUpgradeGrid(gridView, out string blockedReason))
+        selectedUpgradeGrid = gridView;
+        if (CanUpgradeGrid(gridView, out string blockedReason))
         {
             if (TryUpgradeGrid(gridView))
             {
@@ -223,18 +239,8 @@ public class MonopolyHUD : MonoBehaviour
             return;
         }
 
-        selectedUpgradeGrid = gridView;
         string info = BuildGridInfo(gridView, true);
-        if (!CanUpgradeGrid(gridView, out blockedReason))
-        {
-            info += "\n" + blockedReason;
-        }
-        else
-        {
-            info += "\n再次点击这个建筑确认升级。";
-        }
-
-        SetInfo(info);
+        SetInfo(info + "\n" + blockedReason);
     }
 
     public bool TryBuildChainRestaurant()
@@ -466,6 +472,7 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnLevelChanged += HandleLevelChanged;
         stateMachine.OnMessage += HandleMessage;
         stateMachine.OnEventMessage += HandleEventMessage;
+        stateMachine.OnFinalResultRequested += HandleFinalResultRequested;
         subscribed = true;
     }
 
@@ -485,6 +492,7 @@ public class MonopolyHUD : MonoBehaviour
         stateMachine.OnLevelChanged -= HandleLevelChanged;
         stateMachine.OnMessage -= HandleMessage;
         stateMachine.OnEventMessage -= HandleEventMessage;
+        stateMachine.OnFinalResultRequested -= HandleFinalResultRequested;
         subscribed = false;
     }
 
@@ -545,7 +553,7 @@ public class MonopolyHUD : MonoBehaviour
 
         if (context.canUpgrade)
         {
-            builder.AppendLine("可升级建筑：" + context.upgradableGrids.Count + " 个");
+            builder.AppendLine("可升级格子：" + context.upgradableGrids.Count + " 个");
             AppendCheapestUpgrade(builder, context);
         }
 
@@ -607,6 +615,14 @@ public class MonopolyHUD : MonoBehaviour
         }
 
         diceResultRoutine = StartCoroutine(ShowDiceResultRoutine(value));
+    }
+
+    private void HandleFinalResultRequested(bool won)
+    {
+        SetButtonInteractable(ui.buildButton, false);
+        SetButtonInteractable(ui.upgradeButton, false);
+        SetButtonInteractable(ui.diceButton, false);
+        ShowResultOverlay(won);
     }
 
     private IEnumerator ShowDiceResultRoutine(int value)
@@ -706,6 +722,143 @@ public class MonopolyHUD : MonoBehaviour
             ui.diceButtonText.text = string.Empty;
             ui.diceButtonText.enabled = false;
         }
+    }
+
+    private void ShowResultOverlay(bool won)
+    {
+        if (resultOverlay != null)
+        {
+            Destroy(resultOverlay);
+            resultOverlay = null;
+        }
+
+        Canvas parentCanvas = ui.canvas != null ? ui.canvas : FindObjectOfType<Canvas>();
+        if (parentCanvas == null)
+        {
+            GameObject canvasObject = new GameObject("Result Overlay Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            parentCanvas = canvasObject.GetComponent<Canvas>();
+            parentCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            parentCanvas.sortingOrder = 20000;
+
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        resultOverlay = new GameObject("Final Result Overlay", typeof(RectTransform), typeof(Image));
+        resultOverlay.transform.SetParent(parentCanvas.transform, false);
+
+        RectTransform overlayRect = resultOverlay.GetComponent<RectTransform>();
+        overlayRect.anchorMin = Vector2.zero;
+        overlayRect.anchorMax = Vector2.one;
+        overlayRect.offsetMin = Vector2.zero;
+        overlayRect.offsetMax = Vector2.zero;
+
+        Image overlayImage = resultOverlay.GetComponent<Image>();
+        overlayImage.color = new Color(0f, 0f, 0f, 0.58f);
+        overlayImage.raycastTarget = true;
+
+        RectTransform panel = CreateResultPanel(resultOverlay.transform);
+        CreateResultText(panel, "Title", won ? "WIN!" : "再试一次", 96, TextAnchor.MiddleCenter, new Vector2(0f, 90f), new Vector2(660f, 120f));
+        CreateResultText(panel, "Message", won ? "恭喜完成第 2 关，要再玩一次吗？" : "金币数没有超过敌人，点确定重新挑战。", 34, TextAnchor.MiddleCenter, new Vector2(0f, 10f), new Vector2(700f, 80f));
+
+        if (won)
+        {
+            CreateResultButton(panel, "再玩一次", new Vector2(-145f, -105f), () =>
+            {
+                if (stateMachine != null)
+                {
+                    stateMachine.ReplayFromFirstLevel();
+                }
+            });
+
+            CreateResultButton(panel, "结束", new Vector2(145f, -105f), () =>
+            {
+                if (stateMachine != null)
+                {
+                    stateMachine.QuitGame();
+                }
+            });
+        }
+        else
+        {
+            CreateResultButton(panel, "确定", new Vector2(0f, -105f), () =>
+            {
+                if (stateMachine != null)
+                {
+                    stateMachine.RestartCurrentScene();
+                }
+            });
+        }
+    }
+
+    private RectTransform CreateResultPanel(Transform parent)
+    {
+        GameObject panelObject = new GameObject("Panel", typeof(RectTransform), typeof(Image), typeof(Outline));
+        panelObject.transform.SetParent(parent, false);
+
+        RectTransform rect = panelObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(820f, 420f);
+
+        Image image = panelObject.GetComponent<Image>();
+        image.color = new Color(1f, 1f, 1f, 0.9f);
+
+        Outline outline = panelObject.GetComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.55f);
+        outline.effectDistance = new Vector2(4f, -4f);
+
+        return rect;
+    }
+
+    private Text CreateResultText(RectTransform parent, string name, string text, int fontSize, TextAnchor alignment, Vector2 position, Vector2 size)
+    {
+        GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rect = textObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+
+        Text label = textObject.GetComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        label.text = text;
+        label.fontSize = fontSize;
+        label.fontStyle = FontStyle.Bold;
+        label.alignment = alignment;
+        label.color = Color.black;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    private Button CreateResultButton(RectTransform parent, string text, Vector2 position, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject buttonObject = new GameObject(text + " Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = new Vector2(230f, 74f);
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.12f, 0.43f, 0.95f, 0.95f);
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(onClick);
+
+        CreateResultText(rect, "Label", text, 30, TextAnchor.MiddleCenter, Vector2.zero, rect.sizeDelta);
+        return button;
     }
 
     private void RefreshStats()

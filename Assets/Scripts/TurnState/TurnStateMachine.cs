@@ -25,6 +25,7 @@ public class TurnStateMachine : MonoBehaviour
     [SerializeField] private List<PlayerData> players = new List<PlayerData>();
     [SerializeField] private float moveStepDelay = 0.12f; //移动时间间隔
     [SerializeField] private string nextLevelSceneName = "Level_2";
+    [SerializeField] private string firstLevelSceneName = "Level_1";
     [SerializeField] private float winDisplaySeconds = 1f;
 
     public TurnState CurrentState { get; private set; } = TurnState.Idle; //状态
@@ -42,6 +43,7 @@ public class TurnStateMachine : MonoBehaviour
     public event Action<OptionalActionContext> OnOptionalActionRequested; //可选行动请求事件
     public event Action<string> OnMessage; //消息事件
     public event Action<string> OnEventMessage; //来自 EventGridResolver 的事件消息，会显示在 infoText 面板上
+    public event Action<bool> OnFinalResultRequested; //true = win, false = lose
 
     private bool isInitialized; //是否已初始化
     private bool isBusy; //是否正在执行流程（如移动），防止重复触发
@@ -570,10 +572,15 @@ public class TurnStateMachine : MonoBehaviour
                     CurrentLevelIndex++;
                     OnLevelChanged?.Invoke(CurrentLevelIndex);
 
+                    if (ShouldShowFinalResult())
+                    {
+                        ShowFinalResult(true);
+                        return;
+                    }
+
                     if (CurrentLevelIndex >= settings.levelCount)
                     {
-                        LogMessage("全部关卡完成！");
-                        EnterState(TurnState.GameOver);
+                        ShowFinalResult(true);
                         return;
                     }
 
@@ -593,6 +600,12 @@ public class TurnStateMachine : MonoBehaviour
                     LogMessage("第 " + (CurrentLevelIndex + 1) + " 关失败。" +
                                humanPlayer.playerName + " 持有 " + humanPlayer.money + " 金币，对手 " +
                                enemyPlayer.playerName + " 持有 " + enemyPlayer.money + " 金币，重新开始...");
+                    if (ShouldShowFinalResult())
+                    {
+                        ShowFinalResult(false);
+                        return;
+                    }
+
                     ResetCurrentLevel();
                     AssignRandomStartPositions();
                 }
@@ -1151,6 +1164,49 @@ public class TurnStateMachine : MonoBehaviour
         return !isTransitioningLevel
             && !string.IsNullOrEmpty(nextLevelSceneName)
             && SceneManager.GetActiveScene().name == "Level_1";
+    }
+
+    private bool ShouldShowFinalResult()
+    {
+        string activeSceneName = SceneManager.GetActiveScene().name;
+        if (!string.IsNullOrEmpty(nextLevelSceneName) && activeSceneName == nextLevelSceneName)
+        {
+            return true;
+        }
+
+        return settings != null && CurrentLevelIndex >= settings.levelCount;
+    }
+
+    private void ShowFinalResult(bool won)
+    {
+        isBusy = true;
+        CurrentState = TurnState.GameOver;
+        OnStateChanged?.Invoke(CurrentState);
+        OnFinalResultRequested?.Invoke(won);
+        LogMessage(won ? "最终胜利。" : "最终失败。");
+    }
+
+    public void RestartCurrentScene()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void ReplayFromFirstLevel()
+    {
+        Time.timeScale = 1f;
+        string targetScene = string.IsNullOrEmpty(firstLevelSceneName)
+            ? SceneManager.GetActiveScene().name
+            : firstLevelSceneName;
+        SceneManager.LoadScene(targetScene);
+    }
+
+    public void QuitGame()
+    {
+        Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#endif
     }
 
     private IEnumerator ShowWinAndLoadNextLevelRoutine()

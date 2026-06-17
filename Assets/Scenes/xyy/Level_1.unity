@@ -354,7 +354,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &62001290
 MeshRenderer:
@@ -519,7 +519,7 @@ GameObject:
   - component: {fileID: 66123370}
   - component: {fileID: 66123369}
   - component: {fileID: 66123372}
-  m_Layer: 6
+  m_Layer: 7
   m_Name: Grid (35)
   m_TagString: Buff
   m_Icon: {fileID: 0}
@@ -551,7 +551,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &66123370
 MeshRenderer:
@@ -617,7 +617,7 @@ MonoBehaviour:
   gridIndex: 34
   runtimeData:
     index: 34
-    kind: 0
+    kind: 1
     ownerPlayerId: -1
     buildingData:
       buildingType: 0
@@ -815,7 +815,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &71028243
 MeshRenderer:
@@ -1216,7 +1216,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &96364297
 MeshRenderer:
@@ -1329,6 +1329,7 @@ MonoBehaviour:
   labelCharacterSize: 0.045
   labelBackScale: {x: 1.25, y: 0.42, z: 0.02}
   buildingSideOffset: 1.1
+  snapBuildingOffsetToFourDirections: 1
   refreshInterval: 0.15
   buildingPrefabs:
   - buildingType: 0
@@ -2428,7 +2429,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &270841818
 MeshRenderer:
@@ -2786,7 +2787,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &288345849
 MeshRenderer:
@@ -2902,7 +2903,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &296970528
 MeshRenderer:
@@ -4900,7 +4901,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &486522822
 MeshRenderer:
@@ -5810,7 +5811,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &595907025
 MeshRenderer:
@@ -6298,15 +6299,20 @@ MonoBehaviour:
     canvasScaler: {fileID: 0}
     raycaster: {fileID: 0}
     statsPanel: {fileID: 0}
+    moneyIcon: {fileID: 0}
     moneyText: {fileID: 0}
+    turnText: {fileID: 0}
     incomeText: {fileID: 0}
+    victoryInfoText: {fileID: 0}
     infoPanel: {fileID: 0}
     infoText: {fileID: 0}
     buildButton: {fileID: 0}
     buildButtonText: {fileID: 0}
     upgradeButton: {fileID: 0}
+    upgradeButtonIcon: {fileID: 0}
     upgradeButtonText: {fileID: 0}
     diceButton: {fileID: 0}
+    diceButtonIcon: {fileID: 0}
     diceButtonText: {fileID: 0}
   autoFindSceneObjects: 1
   createRuntimeUI: 1
@@ -6784,7 +6790,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &658617579
 MeshRenderer:
@@ -6900,7 +6906,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &666833402
 MeshRenderer:
@@ -8053,7 +8059,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &757477031
 MeshRenderer:
@@ -8554,7 +8560,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &766196654
 MeshRenderer:
@@ -8985,7 +8991,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &803274902
 MeshRenderer:
@@ -9596,7 +9602,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &848551183
 MeshRenderer:
@@ -10748,7 +10754,7 @@ GameObject:
   - component: {fileID: 950506344}
   - component: {fileID: 950506343}
   - component: {fileID: 950506346}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Grid (36)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10780,7 +10786,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &950506344
 MeshRenderer:
@@ -11131,7 +11137,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &981401766
 MeshRenderer:
@@ -11532,9 +11538,9 @@ GameObject:
   - component: {fileID: 1003820478}
   - component: {fileID: 1003820477}
   - component: {fileID: 1003820480}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Grid (25)
-  m_TagString: Untagged
+  m_TagString: Attack
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -11564,7 +11570,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1003820478
 MeshRenderer:
@@ -11935,7 +11941,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1142198700
 MeshRenderer:
@@ -12146,7 +12152,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1146608456
 MeshRenderer:
@@ -12554,7 +12560,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1184834883
 MeshRenderer:
@@ -12670,7 +12676,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1192890555
 MeshRenderer:
@@ -12786,7 +12792,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1205106376
 MeshRenderer:
@@ -13965,7 +13971,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1305209150
 MeshRenderer:
@@ -14255,7 +14261,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1355471923
 MeshRenderer:
@@ -16277,7 +16283,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1549661964
 MeshRenderer:
@@ -16375,9 +16381,9 @@ GameObject:
   - component: {fileID: 1553532132}
   - component: {fileID: 1553532131}
   - component: {fileID: 1553532135}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Grid (13)
-  m_TagString: Untagged
+  m_TagString: Attack
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -16393,7 +16399,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1553532132
 MeshRenderer:
@@ -16539,7 +16545,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1561997932
 MeshRenderer:
@@ -16655,7 +16661,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1566198076
 MeshRenderer:
@@ -17806,7 +17812,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1726371733
 MeshRenderer:
@@ -19123,7 +19129,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1860145045
 MeshRenderer:
@@ -19765,7 +19771,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1902590311
 MeshRenderer:
@@ -21171,6 +21177,9 @@ MonoBehaviour:
     position: 0
     ownedGridIndexes: 
   moveStepDelay: 0.12
+  nextLevelSceneName: Level_2
+  firstLevelSceneName: Level_1
+  winDisplaySeconds: 1
 --- !u!4 &2015579823
 Transform:
   m_ObjectHideFlags: 0
@@ -21216,7 +21225,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2018694869
 MeshRenderer:
@@ -21553,7 +21562,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2043164589
 MeshRenderer:
@@ -21799,7 +21808,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2088459767
 MeshRenderer:
@@ -22063,7 +22072,7 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 2, y: 2, z: 2}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2103021889
 MeshRenderer:

@@ -57,7 +57,7 @@ MonoBehaviour:
     anchoredPosition: {x: -40, y: 55}
     sizeDelta: {x: 285, y: 265}
   moneyText:
-    defaultText: "\u91D1\u94B1\uFF1A0"
+    defaultText: 0
     fontSize: 30
     alignment: 0
     padding:
